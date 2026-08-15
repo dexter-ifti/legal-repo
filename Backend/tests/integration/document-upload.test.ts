@@ -136,7 +136,7 @@ test('Express PDF Document Upload API Integration Tests', async (t) => {
       .set('Authorization', `Bearer ${tokenOrgA}`)
       .attach('file', validPdfBuffer, 'Initial_Unassigned_Notice.pdf');
 
-    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.data.isDuplicate, true);
     assert.strictEqual(res.body.data.id, docIdOrgA);
   });

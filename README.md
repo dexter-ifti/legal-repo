@@ -144,6 +144,7 @@ The Express backend provides a vendor-flexible authentication interface (`IAuthP
 | `/api/v1/cases/:id` | `PATCH` | Yes + Tenant | Update case metadata (protected by resource ownership) |
 | `/api/v1/cases/:id` | `DELETE` | Yes + Tenant + Admin | Delete case record (restricted to ADMIN role) |
 | `/api/v1/documents/upload` | `POST` | Yes + Tenant | Upload PDF document (multipart/form-data, PDF magic byte validation, SHA-256 computation, private storage) |
+| `/api/v1/documents/by-hash/:sha256` | `GET` | Yes + Tenant | Pre-check if document hash exists in tenant organization |
 | `/api/v1/documents/:id` | `GET` | Yes + Tenant | Retrieve document metadata (protected by resource ownership) |
 
 ---

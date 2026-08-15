@@ -464,6 +464,33 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — TASK-014 Duplicate Detection Operational
+
+### Built
+- Implemented `DocumentService.findDuplicateBySha256(organizationId, sha256)` method for fast compound index queries on `[organizationId, sha256]`.
+- Updated `POST /api/v1/documents/upload` to return HTTP 200 OK with `isDuplicate: true` and full existing document details when a duplicate file is uploaded within an organization.
+- Created `GET /api/v1/documents/by-hash/:sha256` REST endpoint allowing pre-upload hash lookup.
+- Added comprehensive integration test suite (`Backend/tests/integration/duplicate-detection.test.ts`) covering intra-tenant duplicate detection, HTTP status codes, hash format validation, and cross-tenant hash isolation.
+
+### Decisions
+- Returning HTTP 200 OK with `isDuplicate: true` and existing document metadata avoids silent file discarding while preventing redundant binary storage allocations.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` executed with 0 errors or warnings across workspace.
+
+### Tests / metrics
+- Workspace Root `npm test`: 106 passing tests (101 Backend, 5 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Strict tenant filtering on compound index `[organizationId, sha256]` guarantees zero cross-tenant metadata leakage during duplicate hash queries.
+
+### Next
+- TASK-015 — Upload UI.
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title

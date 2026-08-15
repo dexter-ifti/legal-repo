@@ -15,7 +15,37 @@ export interface UploadDocumentOptions {
 
 export class DocumentService {
   /**
+   * Finds an existing document record within the tenant matching the SHA-256 hex checksum.
+   */
+  static async findDuplicateBySha256(organizationId: string, sha256: string) {
+    if (!organizationId || !sha256) return null;
+
+    const document = await prisma.document.findFirst({
+      where: buildTenantWhereClause(organizationId, { sha256 }),
+      include: {
+        case: {
+          select: {
+            id: true,
+            title: true,
+            caseNumber: true,
+          },
+        },
+        uploader: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (document) {
+      assertTenantOwnership(document.organizationId, organizationId);
+    }
+
+    return document;
+  }
+
+  /**
    * Uploads PDF buffer to private storage and creates a Document record in Prisma.
+   * If a duplicate file is detected within the organization via SHA-256, returns existing document.
    */
   static async uploadDocument(options: UploadDocumentOptions) {
     const {
@@ -47,12 +77,10 @@ export class DocumentService {
     const sha256Hex = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
     // 3. Deduplication Check: Check if document already exists within tenant
-    const existingDoc = await prisma.document.findFirst({
-      where: buildTenantWhereClause(organizationId, { sha256: sha256Hex }),
-    });
+    const existingDoc = await this.findDuplicateBySha256(organizationId, sha256Hex);
 
     if (existingDoc) {
-      // Return existing document record idempotently
+      // Return existing document record idempotently without creating duplicate storage binary
       return {
         document: existingDoc,
         isDuplicate: true,

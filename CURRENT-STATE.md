@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) active: PDF Upload REST API live (`POST /api/v1/documents/upload`, `GET /api/v1/documents/:id`).
+Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) active: Duplicate Detection and pre-lookup API operational (`GET /api/v1/documents/by-hash/:sha256`).
 
-PDF Document Upload pipeline operational: Multer memory buffer ingestion, PDF magic byte validation (`%PDF-`), SHA-256 checksum computation, private object storage buffer persistence via `storage.service`, tenant-scoped `Document` database record creation in Prisma (supporting `caseId: null` for Upload First), and cross-tenant security isolation. (TASK-001 through TASK-013 complete). Next step is TASK-014 (Duplicate detection).
+Tenant-scoped SHA-256 duplicate detection established: `DocumentService.findDuplicateBySha256` uses compound database indexes `[organizationId, sha256]`. When duplicate documents are uploaded within an organization, the system returns HTTP 200 OK with `isDuplicate: true` and the existing document metadata without duplicating private binary storage. Cross-tenant isolation ensures Organizations A and B uploading identical binaries maintain independent records. (TASK-001 through TASK-014 complete). Next step is TASK-015 (Upload UI).
 
 ---
 

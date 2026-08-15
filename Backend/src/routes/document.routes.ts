@@ -23,6 +23,7 @@ const fetchDocumentOrgId = async (req: TenantRequest) => {
  * POST /api/v1/documents/upload
  * Protected by authenticateToken and requireTenant.
  * Accepts multipart/form-data with field "file" (PDF).
+ * If duplicate SHA-256 exists in organization, returns HTTP 200 with isDuplicate: true.
  */
 router.post(
   '/upload',
@@ -47,6 +48,7 @@ router.post(
       });
 
       const doc = result.document;
+      const statusCode = result.isDuplicate ? 200 : 201;
 
       sendSuccess(
         res,
@@ -65,7 +67,7 @@ router.post(
           uploadedAt: doc.uploadedAt,
           isDuplicate: result.isDuplicate,
         },
-        201
+        statusCode
       );
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to upload document';
@@ -75,6 +77,58 @@ router.post(
       }
 
       sendError(res, message, 500, 'DOCUMENT_UPLOAD_ERROR');
+    }
+  }
+);
+
+/**
+ * GET /api/v1/documents/by-hash/:sha256
+ * Protected by authenticateToken and requireTenant.
+ * Checks if a document with the given SHA-256 hash already exists in the organization.
+ */
+router.get(
+  '/by-hash/:sha256',
+  authenticateToken,
+  requireTenant,
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const { sha256 } = req.params;
+
+      if (!sha256 || sha256.length !== 64) {
+        sendError(res, 'Invalid SHA-256 hash format (64 hex characters expected).', 400, 'INVALID_HASH');
+        return;
+      }
+
+      const existingDoc = await DocumentService.findDuplicateBySha256(organizationId, sha256);
+
+      if (!existingDoc) {
+        sendSuccess(res, { exists: false, document: null }, 200);
+        return;
+      }
+
+      sendSuccess(
+        res,
+        {
+          exists: true,
+          document: {
+            id: existingDoc.id,
+            organizationId: existingDoc.organizationId,
+            caseId: existingDoc.caseId,
+            case: existingDoc.case,
+            originalFilename: existingDoc.originalFilename,
+            storageKey: existingDoc.storageKey,
+            sha256: existingDoc.sha256,
+            processingStatus: existingDoc.processingStatus,
+            matchStatus: existingDoc.matchStatus,
+            uploadedAt: existingDoc.uploadedAt,
+          },
+        },
+        200
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to query document by hash';
+      sendError(res, message, 500, 'HASH_LOOKUP_ERROR');
     }
   }
 );

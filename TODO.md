@@ -228,7 +228,7 @@ Acceptance:
 
 ## TASK-014 — Duplicate detection
 
-Status: READY
+Status: DONE
 
 Goal:
 Detect exact duplicate files using organization + SHA-256.
@@ -242,7 +242,7 @@ Acceptance:
 
 ## TASK-015 — Upload UI
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Build upload/dropzone experience.
@@ -648,4 +648,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-014 — Duplicate detection.**
+**TASK-015 — Upload UI.**
