@@ -4,9 +4,9 @@
 
 ## Project status
 
-Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected, Authentication live, Organization tenant isolation active, and Authorization utilities live (TASK-001 through TASK-007 complete — **Milestone 1 Complete!**).
+Milestone 1 Complete. Milestone 2 (Cases) in progress: Case database model defined, default status values configured, and Prisma Client synced (TASK-001 through TASK-008 complete).
 
-Express backend equipped with server-side authorization utilities (`Backend/src/utils/authorization.ts`), tenant database query clause builder (`buildTenantWhereClause`), nested resource ownership authorization middleware (`authorizeResourceOwnership`), and unit/integration test suites. Next step is Milestone 2: TASK-008 (Case database model).
+`Case` PostgreSQL model refined in `Backend/prisma/schema.prisma` with explicit `status String @default("ACTIVE")`, multi-tenant organization scoping, compound index lookup optimization (`[organizationId, caseNumber]` and `[organizationId, cnrNumber]`), and unit test suite (`Backend/tests/unit/case-model.test.ts`). Next step is TASK-009 (Case CRUD API).
 
 ---
 

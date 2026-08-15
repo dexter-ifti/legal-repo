@@ -126,7 +126,7 @@ Acceptance:
 
 ## TASK-008 — Case database model
 
-Status: READY
+Status: DONE
 
 Goal:
 Implement case schema and migration.
@@ -147,7 +147,7 @@ Fields:
 
 ## TASK-009 — Case CRUD API
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create/read/update cases.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-008 — Case database model.**
+**TASK-009 — Case CRUD API.**

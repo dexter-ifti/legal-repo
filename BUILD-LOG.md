@@ -228,7 +228,34 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Decoupling Auth provider implementation behind TypeScript interfaces enables seamless switching from Supabase Auth to Auth0 or custom JWT solutions without refactoring backend HTTP APIs.
 
 ### Next
-- TASK-008 — Case database model (Milestone 2 — Cases).
+- TASK-009 — Case CRUD API.
+
+---
+
+## 2026-08-15 — TASK-008 Case Database Model Established
+
+### Built
+- Refined `Case` model in `Backend/prisma/schema.prisma` setting explicit `status String @default("ACTIVE")`.
+- Executed `npx prisma generate` to refresh type definitions for `@prisma/client`.
+- Created Case model database unit tests (`Backend/tests/unit/case-model.test.ts`) covering model creation, default values, tenant-isolated lookups via `buildTenantWhereClause`, compound index queries (`caseNumber`, `cnrNumber`), and cascade deletion behavior.
+
+### Decisions
+- Retained optional strings for `caseNumber`, `cnrNumber`, `court`, `judge`, `clientName`, `opposingParty`, `caseType`, and `notes` to support preliminary case creation prior to formal court filing details being known.
+- Enforced mandatory `organizationId` with foreign key relation to `Organization` (`onDelete: Cascade`).
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` across the workspace executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 57 passing tests (54 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Indexing `[organizationId, caseNumber]` and `[organizationId, cnrNumber]` in Prisma provides optimized lookups for exact case matching during automated document ingestion.
+
+### Next
+- TASK-009 — Case CRUD API.
 
 ---
 

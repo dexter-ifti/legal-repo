@@ -81,7 +81,7 @@ model Case {
   clientName     String?      @map("client_name")
   opposingParty  String?      @map("opposing_party")
   caseType       String?      @map("case_type")
-  status         String?
+  status         String       @default("ACTIVE")
   notes          String?
   createdBy      String?      @map("created_by") @db.Uuid
   createdAt      DateTime     @default(now()) @map("created_at")
