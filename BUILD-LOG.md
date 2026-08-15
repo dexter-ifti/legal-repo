@@ -136,7 +136,7 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Structuring `Backend/` as a standalone TypeScript project allows independent testing and deployment from `Frontend/`.
 
 ### Next
-- TASK-004 — Add PostgreSQL.
+- TASK-003 — Add test infrastructure.
 
 ---
 
@@ -166,7 +166,7 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Orchestrating `npm test` at root simplifies continuous integration and pre-commit checks across multi-service setups.
 
 ### Next
-- TASK-005 — Authentication.
+- TASK-004 — Add PostgreSQL.
 
 ---
 
@@ -197,7 +197,7 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Specifying `directUrl` alongside pooled `DATABASE_URL` enables transaction-pooler runtime queries while preserving direct migration connections.
 
 ### Next
-- TASK-006 — Organization model.
+- TASK-005 — Authentication.
 
 ---
 
@@ -228,68 +228,37 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Decoupling Auth provider implementation behind TypeScript interfaces enables seamless switching from Supabase Auth to Auth0 or custom JWT solutions without refactoring backend HTTP APIs.
 
 ### Next
-- TASK-010 — Case UI.
+- TASK-006 — Organization model.
 
 ---
 
-## 2026-08-15 — TASK-009 Case CRUD API Established
+## 2026-08-15 — TASK-006 Organization Model & Tenant Boundaries Established
 
 ### Built
-- Implemented `case.service.ts` providing `createCase`, `getCases` (with search and pagination), `getCaseById`, `updateCase`, and `deleteCase` using `buildTenantWhereClause`.
-- Implemented `case.routes.ts` defining Express REST endpoints:
-  - `POST /api/v1/cases`: Validates payload with Zod `createCaseSchema`.
-  - `GET /api/v1/cases`: Paginated listing with search keyword filter across `title`, `caseNumber`, `cnrNumber`, `clientName`, and `court`.
-  - `GET /api/v1/cases/:id`: Detailed case retrieval protected by `authorizeResourceOwnership`.
-  - `PATCH /api/v1/cases/:id`: Metadata updates with Zod `updateCaseSchema` protected by `authorizeResourceOwnership`.
-  - `DELETE /api/v1/cases/:id`: Case deletion restricted to `ADMIN` role protected by `authorizeResourceOwnership`.
-- Registered `/api/v1/cases` router in `Backend/src/app.ts`.
-- Created Zod validation schema unit tests (`Backend/tests/unit/case.test.ts`).
-- Created HTTP integration tests (`Backend/tests/integration/case.test.ts`) covering CRUD lifecycle, query search filters, and strict multi-tenant access prevention.
+- Implemented tenant isolation middleware `requireTenant` (`Backend/src/middleware/tenant.middleware.ts`) enforcing organization identity boundaries.
+- Built Organization domain management service (`Backend/src/services/organization.service.ts`) encapsulating Prisma queries for organization creation, updates, and member roster queries.
+- Built Organization API endpoints (`Backend/src/routes/organization.routes.ts`) for `POST /api/v1/organizations`, `GET /api/v1/organizations/me`, `PATCH /api/v1/organizations/me`, and `GET /api/v1/organizations/me/members`.
+- Registered `/api/v1/organizations` in Express app (`Backend/src/app.ts`).
+- Created unit test suite (`Backend/tests/unit/organization.test.ts`) and multi-tenant HTTP isolation test suite (`Backend/tests/integration/organization.test.ts`).
 
 ### Decisions
-- Applied search across multiple columns (`title`, `caseNumber`, `cnrNumber`, `clientName`, `court`) using case-insensitive `contains` mode.
-- Ensured deleting a case requires `ADMIN` role to prevent accidental data loss by standard advocates or clerks.
-
-### Problems
-- None. `npm test`, `npm run typecheck`, and `npm run lint` across workspace executed with 0 errors or warnings.
-
-### Tests / metrics
-- Workspace Root `npm test`: 71 passing tests (68 Backend, 3 Frontend), 0 failures.
-- Workspace Root `npm run typecheck`: 0 errors.
-- Workspace Root `npm run lint`: 0 errors.
-
-### Learning
-- Combining `requireTenant`, `authorizeResourceOwnership`, and `buildTenantWhereClause` guarantees defense-in-depth against cross-tenant data leaks.
-
-### Next
-- TASK-010 — Case UI.
-
----
-
-## 2026-08-15 — TASK-008 Case Database Model Established
-
-### Built
-- Refined `Case` model in `Backend/prisma/schema.prisma` setting explicit `status String @default("ACTIVE")`.
-- Executed `npx prisma generate` to refresh type definitions for `@prisma/client`.
-- Created Case model database unit tests (`Backend/tests/unit/case-model.test.ts`) covering model creation, default values, tenant-isolated lookups via `buildTenantWhereClause`, compound index queries (`caseNumber`, `cnrNumber`), and cascade deletion behavior.
-
-### Decisions
-- Retained optional strings for `caseNumber`, `cnrNumber`, `court`, `judge`, `clientName`, `opposingParty`, `caseType`, and `notes` to support preliminary case creation prior to formal court filing details being known.
-- Enforced mandatory `organizationId` with foreign key relation to `Organization` (`onDelete: Cascade`).
+- Mandated `requireTenant` middleware on all tenant-scoped routes to ensure `req.organizationId` is always verified server-side.
+- Automatically promoted organization creator to `ADMIN` role upon creation.
 
 ### Problems
 - None. `npm test`, `npm run typecheck`, and `npm run lint` across the workspace executed with 0 errors or warnings.
 
 ### Tests / metrics
-- Workspace Root `npm test`: 57 passing tests (54 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm test`: 39 passing tests (36 Backend, 3 Frontend), 0 failures.
+- Multi-Tenant Isolation Tests: Verified that User in Org B cannot observe or query members belonging to Org A.
 - Workspace Root `npm run typecheck`: 0 errors.
 - Workspace Root `npm run lint`: 0 errors.
 
 ### Learning
-- Indexing `[organizationId, caseNumber]` and `[organizationId, cnrNumber]` in Prisma provides optimized lookups for exact case matching during automated document ingestion.
+- Centralizing tenant validation in middleware ensures consistent multi-tenant boundary checks across current and future resources (cases, documents, audit logs).
 
 ### Next
-- TASK-009 — Case CRUD API.
+- TASK-007 — Authorization foundation.
 
 ---
 
@@ -324,33 +293,64 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
-## 2026-08-15 — TASK-006 Organization Model & Tenant Boundaries Established
+## 2026-08-15 — TASK-008 Case Database Model Established
 
 ### Built
-- Implemented tenant isolation middleware `requireTenant` (`Backend/src/middleware/tenant.middleware.ts`) enforcing organization identity boundaries.
-- Built Organization domain management service (`Backend/src/services/organization.service.ts`) encapsulating Prisma queries for organization creation, updates, and member roster queries.
-- Built Organization API endpoints (`Backend/src/routes/organization.routes.ts`) for `POST /api/v1/organizations`, `GET /api/v1/organizations/me`, `PATCH /api/v1/organizations/me`, and `GET /api/v1/organizations/me/members`.
-- Registered `/api/v1/organizations` in Express app (`Backend/src/app.ts`).
-- Created unit test suite (`Backend/tests/unit/organization.test.ts`) and multi-tenant HTTP isolation test suite (`Backend/tests/integration/organization.test.ts`).
+- Refined `Case` model in `Backend/prisma/schema.prisma` setting explicit `status String @default("ACTIVE")`.
+- Executed `npx prisma generate` to refresh type definitions for `@prisma/client`.
+- Created Case model database unit tests (`Backend/tests/unit/case-model.test.ts`) covering model creation, default values, tenant-isolated lookups via `buildTenantWhereClause`, compound index queries (`caseNumber`, `cnrNumber`), and cascade deletion behavior.
 
 ### Decisions
-- Mandated `requireTenant` middleware on all tenant-scoped routes to ensure `req.organizationId` is always verified server-side.
-- Automatically promoted organization creator to `ADMIN` role upon creation.
+- Retained optional strings for `caseNumber`, `cnrNumber`, `court`, `judge`, `clientName`, `opposingParty`, `caseType`, and `notes` to support preliminary case creation prior to formal court filing details being known.
+- Enforced mandatory `organizationId` with foreign key relation to `Organization` (`onDelete: Cascade`).
 
 ### Problems
 - None. `npm test`, `npm run typecheck`, and `npm run lint` across the workspace executed with 0 errors or warnings.
 
 ### Tests / metrics
-- Workspace Root `npm test`: 39 passing tests (36 Backend, 3 Frontend), 0 failures.
-- Multi-Tenant Isolation Tests: Verified that User in Org B cannot observe or query members belonging to Org A.
+- Workspace Root `npm test`: 57 passing tests (54 Backend, 3 Frontend), 0 failures.
 - Workspace Root `npm run typecheck`: 0 errors.
 - Workspace Root `npm run lint`: 0 errors.
 
 ### Learning
-- Centralizing tenant validation in middleware ensures consistent multi-tenant boundary checks across current and future resources (cases, documents, audit logs).
+- Indexing `[organizationId, caseNumber]` and `[organizationId, cnrNumber]` in Prisma provides optimized lookups for exact case matching during automated document ingestion.
 
 ### Next
-- TASK-007 — Authorization foundation.
+- TASK-009 — Case CRUD API.
+
+---
+
+## 2026-08-15 — TASK-009 Case CRUD API Established
+
+### Built
+- Implemented `case.service.ts` providing `createCase`, `getCases` (with search and pagination), `getCaseById`, `updateCase`, and `deleteCase` using `buildTenantWhereClause`.
+- Implemented `case.routes.ts` defining Express REST endpoints:
+  - `POST /api/v1/cases`: Validates payload with Zod `createCaseSchema`.
+  - `GET /api/v1/cases`: Paginated listing with search keyword filter across `title`, `caseNumber`, `cnrNumber`, `clientName`, and `court`.
+  - `GET /api/v1/cases/:id`: Detailed case retrieval protected by `authorizeResourceOwnership`.
+  - `PATCH /api/v1/cases/:id`: Metadata updates with Zod `updateCaseSchema` protected by `authorizeResourceOwnership`.
+  - `DELETE /api/v1/cases/:id`: Case deletion restricted to `ADMIN` role protected by `authorizeResourceOwnership`.
+- Registered `/api/v1/cases` router in `Backend/src/app.ts`.
+- Created Zod validation schema unit tests (`Backend/tests/unit/case.test.ts`).
+- Created HTTP integration tests (`Backend/tests/integration/case.test.ts`) covering CRUD lifecycle, query search filters, and strict multi-tenant access prevention.
+
+### Decisions
+- Applied search across multiple columns (`title`, `caseNumber`, `cnrNumber`, `clientName`, `court`) using case-insensitive `contains` mode.
+- Ensured deleting a case requires `ADMIN` role to prevent accidental data loss by standard advocates or clerks.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` across workspace executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 71 passing tests (68 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Combining `requireTenant`, `authorizeResourceOwnership`, and `buildTenantWhereClause` guarantees defense-in-depth against cross-tenant data leaks.
+
+### Next
+- TASK-010 — Case UI.
 
 ---
 
