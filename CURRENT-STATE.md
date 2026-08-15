@@ -116,14 +116,36 @@ Correct legal documents automatically identified and filed into the correct case
 
 ---
 
+### Milestone 7 — Audit & Reliability (TASK-031 — TASK-033)
+- **TASK-031 (Audit Trail)**: Built `AuditService` (`Backend/src/services/audit/audit.service.ts`), audit logger middleware, and `GET /api/v1/audit-logs` (`Backend/src/routes/audit.routes.ts`) tracking 10 core document lifecycle events (`DOCUMENT_UPLOADED`, `TEXT_EXTRACTED`, `AUTO_MATCHED`, `DOCUMENT_CONFIRMED`, `DOCUMENT_REASSIGNED`, `DOCUMENT_ACCESSED`, etc.).
+- **TASK-032 (Processing Retry & Idempotency)**: Implemented `POST /api/v1/documents/:id/retry` with state-recovery mechanics, preserving original files and avoiding duplicate case filings.
+- **TASK-033 (Golden Path Integration Verification)**: Comprehensive end-to-end integration test suite `golden-path.test.ts` passing 100% offline.
+
+---
+
+### Milestone 8 — Evaluation & Benchmarking (TASK-034 — TASK-036)
+- **TASK-034 (Ground-Truth Dataset)**: Built synthetic labeled benchmark dataset (`evaluation-dataset.ts`) with 100 ground-truth legal document scenarios.
+- **TASK-035 (Matching Benchmark Engine)**: Created `BenchmarkEvaluationService` (`benchmark.service.ts`) computing Top-1 Accuracy, Top-3 Recall, Auto-Match Precision, False Auto-Match Rate, Automation Rate, and Document Taxonomy Accuracy.
+- **TASK-036 (Threshold Calibration)**: Automated test harness `benchmark.test.ts` calibrating `AUTO_MATCH` (0.90) and `CONFIRM` (0.45) thresholds, enforcing a **0.0% False Auto-Match Rate**.
+
+---
+
+### Milestone 9 — Pilot Readiness & Security Audit (TASK-037 — TASK-039)
+- **TASK-037 (Security Review Suite)**: Built `security-audit.test.ts` verifying tenant isolation, temporary signed URL security, path traversal sanitization, and prompt injection defense.
+- **TASK-038 (UX Review & Boundary Suite)**: Built `ux-flow.test.ts` validating upload-first UX, match status uncertainty visibility, search snippet formatting, and error state handling.
+- **TASK-039 (Pilot Telemetry API)**: Created `PilotReadinessService` and `GET /api/v1/pilot/status` providing real-time telemetry metrics and system readiness validation for design-partner pilot onboarding.
+
+---
+
 ## What is next
 
-### Active Milestone: Milestone 7 — Audit & Reliability
+### All MVP Milestones (1–9) Complete!
 
-1. **TASK-031 — Audit Trail**:
-   - Record comprehensive audit logs for all critical document lifecycle events.
-2. **TASK-032 — Processing Retry & Idempotency**:
-   - Ensure document pipeline execution jobs are retryable without duplicate creation or state corruption.
+1. **Design-Partner Pilot Onboarding**:
+   - Deploy MVP instance for 3–5 small law offices/chambers.
+   - Monitor real-world metrics via `GET /api/v1/pilot/status` (documents/day, automation rate, correction rate, search success).
+2. **Operational Feedback Loop**:
+   - Capture real advocate feedback on candidate case matching accuracy and upload-first workflow.
 
 ## Current risks
 
