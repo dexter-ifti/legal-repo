@@ -4,14 +4,14 @@
 
 ## Project status
 
-**Milestones 1, 2, 3, 4, 5, 6, 7 & 8 Complete** (Identity, Multi-Tenancy, Document Ingestion, Document Understanding, Case Matching Engine, Retrieval & Search Engine, Audit & Reliability, and Evaluation & Benchmarking).  
-Ready for **Milestone 9 (Pilot Readiness)** starting with **TASK-037 — Security Review**.
+**Milestones 1, 2, 3, 4, 5, 6, 7, 8 & 9 Complete** (Identity, Multi-Tenancy, Document Ingestion, Document Understanding, Case Matching Engine, Retrieval & Search Engine, Audit & Reliability, Evaluation & Benchmarking, and Pilot Readiness).  
+**Platform Status**: MVP Complete and Ready for Design-Partner Pilot Onboarding (3–5 small law offices/chambers).
 
 System status:
 - TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
 - ESLint checks passing with 0 warnings or errors (`npm run lint`).
 - Next.js frontend production build passing with 13/13 static pages generated (`npm run build`).
-- Unit test suite passing 100% offline (`38 passed, 0 failed`).
+- Unit test suite passing 100% offline (`48 passed, 0 failed`).
 - Clean Git repository tree on `master` branch.
 
 ---

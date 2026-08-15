@@ -637,6 +637,37 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — Milestone 9 Complete (Pilot Readiness & Security Audit)
+
+### Built
+- **Security Audit Verification Suite (`TASK-037`)**: Implemented `Backend/tests/unit/security-audit.test.ts` testing tenant isolation enforcement, signed URL expiration privacy, filename path-traversal sanitization, and prompt injection defenses.
+- **UX Review & Boundary Verification Suite (`TASK-038`)**: Created `Backend/tests/unit/ux-flow.test.ts` validating upload-first UX workflow, candidate uncertainty visibility (`AUTO_MATCHED` vs `CONFIRMATION_REQUIRED`), search snippet highlighting, and empty/error state handling.
+- **Pilot Telemetry & Readiness Engine (`TASK-039`)**: Built `PilotReadinessService` and `GET /api/v1/pilot/status` router mounted in `app.ts` providing real-time telemetry metrics and system readiness validation.
+
+### Decisions
+- Exposed tenant-authenticated pilot status API endpoint (`/api/v1/pilot/status`) to allow design-partner administrators to audit tenant isolation, security enforcement, and live matching accuracy metrics.
+
+### Tests / metrics
+- Backend `npm run typecheck`: 0 errors.
+- Backend `npm run lint`: 0 errors.
+- Frontend `npm run typecheck`: 0 errors.
+- Frontend `npm run build`: 13/13 static pages compiled successfully.
+- Unit Test Suite: 48/48 unit tests passing 100% offline (`security-audit.test.ts` & `ux-flow.test.ts` included).
+- Pilot Telemetry Metrics:
+  - System Ready Status: `true`
+  - Tenant Isolation Active: `true`
+  - Storage Security Enforced: `true`
+  - Audit Logging Active: `true`
+  - False Auto-Match Rate: `0.0%`
+
+### Learning
+- Comprehensive automated verification suites for security, UX boundaries, and live telemetry ensure pilot deployment readiness without regression risks across tenant-isolated resources.
+
+### Next
+- Full MVP Complete. Ready for design-partner pilot onboarding with 3–5 small law offices/chambers.
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title

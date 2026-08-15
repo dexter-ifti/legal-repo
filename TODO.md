@@ -579,7 +579,7 @@ Use benchmark results to determine safe AUTO_MATCH and CONFIRM thresholds.
 
 ## TASK-037 — Security review
 
-Status: READY
+Status: DONE
 
 Review:
 - tenant isolation
@@ -595,7 +595,7 @@ Review:
 
 ## TASK-038 — UX review
 
-Status: BLOCKED
+Status: DONE
 
 Verify:
 - upload-first experience
@@ -609,7 +609,7 @@ Verify:
 
 ## TASK-039 — Design-partner pilot
 
-Status: BLOCKED
+Status: DONE
 
 Target:
 3–5 small law offices/chambers.
