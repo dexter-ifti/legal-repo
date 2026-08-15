@@ -81,13 +81,13 @@ Acceptance:
 
 ## TASK-005 — Authentication
 
-Status: READY
+Status: DONE
 
 Goal:
 Implement basic secure authentication.
 
 Acceptance:
-- signup/login/logout
+- signup/login/logout/forgot-password
 - authenticated session
 - password/security behavior documented
 - protected routes
@@ -96,7 +96,7 @@ Acceptance:
 
 ## TASK-006 — Organization model
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create organization/tenant model.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-005 — Authentication.**
+**TASK-006 — Organization model.**

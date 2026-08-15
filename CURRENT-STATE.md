@@ -4,9 +4,9 @@
 
 ## Project status
 
-Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected via Prisma ORM (TASK-001 through TASK-004 complete).
+Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected, vendor-flexible Authentication service live (TASK-001 through TASK-005 complete).
 
-Express backend connected to Supabase PostgreSQL using Prisma ORM with generic provider abstraction layer (`Backend/src/db/`). Core 6 database models defined and synced (`organizations`, `users`, `cases`, `documents`, `document_metadata`, `audit_events`). Next step is TASK-005 (Authentication).
+Express backend equipped with vendor-flexible authentication interface (`IAuthProvider`), Supabase Auth implementation, `MockAuthProvider` for fast testing, Zod input validation schemas, Express authentication middleware (`authenticateToken`, `requireRole`), and API route handlers (`/signup`, `/login`, `/logout`, `/forgot-password`, `/me`). Next step is TASK-006 (Organization model).
 
 ---
 

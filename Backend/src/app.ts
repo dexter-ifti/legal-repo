@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import healthRoutes from './routes/health.routes.js';
+import authRoutes from './routes/auth.routes.js';
 import { sendError } from './utils/api-response.js';
 
 dotenv.config();
@@ -24,6 +25,9 @@ export const createApp = (): Express => {
   // Base Health & Root Routes
   app.use('/', healthRoutes);
   app.use('/api', healthRoutes);
+
+  // API V1 Feature Routes
+  app.use('/api/v1/auth', authRoutes);
 
   // 404 Fallback Handler
   app.use((_req: Request, res: Response) => {

@@ -197,7 +197,38 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Specifying `directUrl` alongside pooled `DATABASE_URL` enables transaction-pooler runtime queries while preserving direct migration connections.
 
 ### Next
-- TASK-005 — Authentication.
+- TASK-006 — Organization model.
+
+---
+
+## 2026-08-15 — TASK-005 Authentication System Established
+
+### Built
+- Implemented vendor-flexible `IAuthProvider` interface (`Backend/src/auth/AuthProvider.ts`).
+- Implemented `SupabaseAuthProvider` (`Backend/src/auth/SupabaseAuthProvider.ts`) utilizing `@supabase/supabase-js`.
+- Implemented `MockAuthProvider` (`Backend/src/auth/MockAuthProvider.ts`) generating valid RFC 4122 UUIDs for deterministic testing.
+- Created `auth.service.ts` syncing Auth identity with PostgreSQL `users` & `organizations` domain tables.
+- Implemented Express middleware `authenticateToken` & `requireRole` (`Backend/src/middleware/auth.middleware.ts`).
+- Implemented Auth routes (`Backend/src/routes/auth.routes.ts`) with Zod input validation schemas for `/signup`, `/login`, `/logout`, `/forgot-password`, and `/me`.
+- Created unit tests (`Backend/tests/unit/auth.test.ts`) and HTTP integration tests (`Backend/tests/integration/auth.test.ts`).
+
+### Decisions
+- Encapsulated vendor-specific Auth calls behind the `IAuthProvider` interface to ensure switching authentication providers requires no modifications to Express route handlers or application controllers.
+- Automated creation of default organization and PostgreSQL user profile syncing upon successful signup or login.
+
+### Problems
+- Identified UUID validation requirement in Prisma user records (`@db.Uuid`). Fixed `MockAuthProvider` to generate valid `crypto.randomUUID()` values for test users.
+
+### Tests / metrics
+- Workspace Root `npm test`: 28 passing tests (25 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Decoupling Auth provider implementation behind TypeScript interfaces enables seamless switching from Supabase Auth to Auth0 or custom JWT solutions without refactoring backend HTTP APIs.
+
+### Next
+- TASK-006 — Organization model.
 
 ---
 

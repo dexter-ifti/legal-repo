@@ -123,6 +123,20 @@ Indexing, Search & Document Retrieval
 
 ---
 
+## 🔐 Authentication & API Endpoints
+
+The Express backend provides a vendor-flexible authentication interface (`IAuthProvider`) implemented with Supabase Auth:
+
+| Endpoint | Method | Auth Required | Description |
+| :--- | :--- | :--- | :--- |
+| `/api/v1/auth/signup` | `POST` | No | Register new advocate account with Zod validation |
+| `/api/v1/auth/login` | `POST` | No | Authenticate user & return session access token |
+| `/api/v1/auth/logout` | `POST` | Yes | Revoke active session token |
+| `/api/v1/auth/forgot-password` | `POST` | No | Send password reset instructions |
+| `/api/v1/auth/me` | `GET` | Yes | Retrieve current authenticated user profile & organization |
+
+---
+
 ## 📋 Engineering Governance & Guidelines
 
 All development on this codebase follows strict engineering, security, and scope-control guidelines detailed in [`AGENTS.md`](./AGENTS.md).
