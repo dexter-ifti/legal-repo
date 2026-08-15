@@ -92,7 +92,13 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
         </Link>
         <Link
           href="/login"
-          onClick={onItemClick}
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            }
+            if (onItemClick) onItemClick();
+          }}
           className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
         >
           <LogOut className="h-4.5 w-4.5" style={{ width: '1.125rem', height: '1.125rem' }} />
