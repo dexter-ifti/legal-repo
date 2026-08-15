@@ -538,7 +538,7 @@ create case
 
 ## TASK-034 — Create initial matching dataset
 
-Status: READY
+Status: DONE
 
 Goal:
 Create 100 labeled test documents.
@@ -554,7 +554,7 @@ Use synthetic/public/anonymized documents.
 
 ## TASK-035 — Matching benchmark
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Measure:
@@ -568,7 +568,7 @@ Measure:
 
 ## TASK-036 — Calibrate thresholds
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Use benchmark results to determine safe AUTO_MATCH and CONFIRM thresholds.
@@ -579,7 +579,7 @@ Use benchmark results to determine safe AUTO_MATCH and CONFIRM thresholds.
 
 ## TASK-037 — Security review
 
-Status: BLOCKED
+Status: READY
 
 Review:
 - tenant isolation
