@@ -36,4 +36,9 @@ export interface HealthCheckData {
   version: string;
   timestamp: string;
   uptime: number;
+  database?: {
+    connected: boolean;
+    latencyMs?: number;
+    error?: string;
+  };
 }

@@ -64,7 +64,7 @@ Acceptance:
 
 ## TASK-004 — Add PostgreSQL
 
-Status: READY
+Status: DONE
 
 Goal:
 Connect application to PostgreSQL.
@@ -81,7 +81,7 @@ Acceptance:
 
 ## TASK-005 — Authentication
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Implement basic secure authentication.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-004 — Add PostgreSQL.**
+**TASK-005 — Authentication.**

@@ -166,7 +166,38 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Orchestrating `npm test` at root simplifies continuous integration and pre-commit checks across multi-service setups.
 
 ### Next
-- TASK-004 — Add PostgreSQL.
+- TASK-005 — Authentication.
+
+---
+
+## 2026-08-15 — TASK-004 PostgreSQL Integration via Prisma ORM Established
+
+### Built
+- Configured Prisma ORM (v6.19.3) in `Backend/` connecting to PostgreSQL (Supabase PostgreSQL).
+- Defined database schema in `Backend/prisma/schema.prisma` covering the 6 core domain models: `Organization`, `User`, `Case`, `Document`, `DocumentMetadata`, `AuditEvent`.
+- Implemented generic database abstraction layer (`Backend/src/db/client.ts`, `Backend/src/db/health.ts`).
+- Integrated database connection health check ping into `/health` and `/api/v1/health` Express endpoints.
+- Executed `npx prisma db push` syncing schema with Supabase PostgreSQL without vendor lock-in.
+- Created DB integration test (`Backend/tests/integration/db.test.ts`).
+
+### Decisions
+- Used standard Prisma ORM PostgreSQL datasource (`DATABASE_URL` + `DIRECT_URL`) to allow seamless migration between Supabase PostgreSQL, self-hosted Postgres, AWS RDS, or GCP Cloud SQL without code modification.
+- Encapsulated Prisma client inside `Backend/src/db/client.ts` to keep application controllers decoupled from ORM instantiation.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` across the workspace executed with 0 errors.
+
+### Tests / metrics
+- Workspace Root `npm test`: 10 passing tests (7 Backend, 3 Frontend), 0 failures.
+- `npx prisma db push`: Pushed all 6 domain tables and enums to Supabase PostgreSQL in 4.67s.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Specifying `directUrl` alongside pooled `DATABASE_URL` enables transaction-pooler runtime queries while preserving direct migration connections.
+
+### Next
+- TASK-005 — Authentication.
 
 ---
 

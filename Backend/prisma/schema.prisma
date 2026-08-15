@@ -1,0 +1,162 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  ADVOCATE
+  CLERK
+}
+
+enum ProcessingStatus {
+  UPLOADED
+  QUEUED
+  EXTRACTING
+  CLASSIFYING
+  MATCHING
+  AWAITING_CONFIRMATION
+  FILED
+  PROCESSING_FAILED
+  OCR_FAILED
+  UNSUPPORTED
+}
+
+enum MatchStatus {
+  NOT_STARTED
+  NO_MATCH
+  CANDIDATES_FOUND
+  AUTO_MATCHED
+  CONFIRMATION_REQUIRED
+  CONFIRMED
+  REASSIGNED
+}
+
+model Organization {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  users       User[]
+  cases       Case[]
+  documents   Document[]
+  auditEvents AuditEvent[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  email          String       @unique
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdCases   Case[]       @relation("CreatedCases")
+  uploadedDocs   Document[]   @relation("UploadedDocs")
+  auditEvents    AuditEvent[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Case {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  title          String
+  caseNumber     String?      @map("case_number")
+  cnrNumber      String?      @map("cnr_number")
+  court          String?
+  judge          String?
+  clientName     String?      @map("client_name")
+  opposingParty  String?      @map("opposing_party")
+  caseType       String?      @map("case_type")
+  status         String?
+  notes          String?
+  createdBy      String?      @map("created_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator        User?        @relation("CreatedCases", fields: [createdBy], references: [id], onDelete: SetNull)
+  documents      Document[]
+
+  @@index([organizationId])
+  @@index([organizationId, caseNumber])
+  @@index([organizationId, cnrNumber])
+  @@map("cases")
+}
+
+model Document {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  caseId           String?          @map("case_id") @db.Uuid
+  originalFilename String           @map("original_filename")
+  systemFilename   String?          @map("system_filename")
+  storageKey       String           @map("storage_key")
+  mimeType         String?          @map("mime_type")
+  fileSize         BigInt?          @map("file_size")
+  sha256           String
+  documentType     String?          @map("document_type")
+  documentDate     DateTime?        @map("document_date") @db.Date
+  processingStatus ProcessingStatus @default(UPLOADED) @map("processing_status")
+  matchStatus      MatchStatus      @default(NOT_STARTED) @map("match_status")
+  matchConfidence  Decimal?         @map("match_confidence") @db.Decimal(5, 4)
+  uploadedBy       String           @map("uploaded_by") @db.Uuid
+  uploadedAt       DateTime         @default(now()) @map("uploaded_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  case             Case?            @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  uploader         User             @relation("UploadedDocs", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  metadata         DocumentMetadata[]
+
+  @@index([organizationId])
+  @@index([organizationId, sha256])
+  @@index([organizationId, caseId])
+  @@map("documents")
+}
+
+model DocumentMetadata {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @map("document_id") @db.Uuid
+  fieldName  String   @map("field_name")
+  fieldValue String?  @map("field_value")
+  confidence Decimal? @db.Decimal(5, 4)
+  source     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_metadata")
+}
+
+model AuditEvent {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  userId         String?      @map("user_id") @db.Uuid
+  entityType     String?      @map("entity_type")
+  entityId       String?      @map("entity_id") @db.Uuid
+  eventType      String       @map("event_type")
+  metadata       Json?
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, entityId])
+  @@map("audit_events")
+}

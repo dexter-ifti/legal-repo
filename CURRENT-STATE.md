@@ -4,9 +4,9 @@
 
 ## Project status
 
-Frontend and Backend foundation established, test infrastructure active (TASK-001, TASK-002 & TASK-003 complete).
+Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected via Prisma ORM (TASK-001 through TASK-004 complete).
 
-Express backend unit & `supertest` HTTP integration testing set up in `Backend/`. Vitest unit testing set up in `Frontend/`. Root `npm test` orchestrates full workspace suite execution. Next step is TASK-004 (PostgreSQL integration).
+Express backend connected to Supabase PostgreSQL using Prisma ORM with generic provider abstraction layer (`Backend/src/db/`). Core 6 database models defined and synced (`organizations`, `users`, `cases`, `documents`, `document_metadata`, `audit_events`). Next step is TASK-005 (Authentication).
 
 ---
 

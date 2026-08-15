@@ -78,12 +78,14 @@ Indexing, Search & Document Retrieval
    cp Frontend/.env.example Frontend/.env.local
    ```
 
-3. **Backend Service Setup:**
+3. **Backend Service & Database Setup:**
    ```bash
    cd Backend
    npm install
-   npm run dev       # Starts Express backend on http://localhost:5000
-   npm test          # Runs backend health unit tests
+   npx prisma generate  # Generates Prisma ORM TypeScript client
+   npx prisma db push   # Syncs database schema with PostgreSQL / Supabase
+   npm run dev          # Starts Express backend on http://localhost:5000
+   npm test             # Runs backend unit & database integration tests
    ```
 
 4. **Frontend Service Setup:**
