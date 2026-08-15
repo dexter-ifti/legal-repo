@@ -21,6 +21,12 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    if (!email.trim() || !password) {
+      setError('Please enter both email and password');
+      setLoading(false);
+      return;
+    }
+
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
@@ -32,32 +38,28 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error?.message || data.message || 'Invalid email or password');
+        const errorMsg = data.error?.message || data.message || 'Invalid email or password';
+        setError(errorMsg);
+        setLoading(false);
+        return;
       }
 
-      if (data.data?.token) {
-        localStorage.setItem('token', data.data.token);
-        if (data.data?.user) {
-          localStorage.setItem('user', JSON.stringify(data.data.user));
-        }
+      const token = data.data?.session?.token || data.data?.token;
+      const user = data.data?.user;
+
+      if (token) {
+        localStorage.setItem('token', token);
       }
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      setLoading(false);
       router.push('/dashboard');
     } catch (err: unknown) {
-      // If API connection fails (e.g. backend server running offline or demo mode), allow seamless fallback
-      const msg = err instanceof Error ? err.message : 'Authentication failed';
-      console.warn('Login API call warning:', msg);
-      localStorage.setItem('token', 'demo-jwt-token-lexflow-advocate');
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          id: 'usr_sarah',
-          email,
-          name: 'Sarah Mitchell',
-          role: 'Senior Advocate',
-          organizationId: 'org_lexflow_demo',
-        })
-      );
-      setTimeout(() => router.push('/dashboard'), 400);
+      const msg = err instanceof Error ? err.message : 'Unable to connect to authentication server';
+      setError(msg);
+      setLoading(false);
     }
   }
 

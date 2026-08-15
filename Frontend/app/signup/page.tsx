@@ -23,6 +23,12 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setLoading(false);
+      return;
+    }
+
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const response = await fetch(`${baseUrl}/api/v1/auth/signup`, {
@@ -34,32 +40,28 @@ export default function SignupPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error?.message || data.message || 'Registration failed');
+        const errorMsg = data.error?.message || data.message || 'Registration failed';
+        setError(errorMsg);
+        setLoading(false);
+        return;
       }
 
-      if (data.data?.token) {
-        localStorage.setItem('token', data.data.token);
-        if (data.data?.user) {
-          localStorage.setItem('user', JSON.stringify(data.data.user));
-        }
+      const token = data.data?.session?.token || data.data?.token;
+      const user = data.data?.user;
+
+      if (token) {
+        localStorage.setItem('token', token);
       }
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+
+      setLoading(false);
       router.push('/dashboard');
     } catch (err: unknown) {
-      // Fallback mode if offline / demo mode
-      const msg = err instanceof Error ? err.message : 'Signup failed';
-      console.warn('Signup API call warning:', msg);
-      localStorage.setItem('token', 'demo-jwt-token-lexflow-advocate');
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          id: 'usr_new',
-          email,
-          name: name || 'Advocate User',
-          role: 'Lawyer / Advocate',
-          organizationId: 'org_new_workspace',
-        })
-      );
-      setTimeout(() => router.push('/dashboard'), 400);
+      const msg = err instanceof Error ? err.message : 'Unable to connect to authentication server';
+      setError(msg);
+      setLoading(false);
     }
   }
 
