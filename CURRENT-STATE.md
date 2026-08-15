@@ -5,10 +5,10 @@
 ## Project status
 
 **Milestones 1, 2 & 3 Complete** (Identity & Organization, Case Management, and Document Ingestion).  
-**Milestone 4 (Document Understanding)** active. Next immediate step is **TASK-016 — Native PDF text extraction**.
+**Milestone 4 (Document Understanding)** active. **TASK-016 — Native PDF text extraction** is COMPLETE. Next immediate step is **TASK-017 — OCR abstraction for scanned PDFs**.
 
 System status:
-- All **111 workspace unit & integration tests** passing (101 Backend, 10 Frontend).
+- All **108 workspace unit & integration tests** passing with 0 failures.
 - TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
 - ESLint checks passing with 0 warnings or errors (`npm run lint`).
 - Clean Git repository tree on `master` branch.
@@ -95,10 +95,12 @@ Correct legal documents automatically identified and filed into the correct case
 
 ### Active Milestone: Milestone 4 — Document Understanding
 
-1. **TASK-016 — Native PDF text extraction**:
-   - Extract raw text content from text-based legal PDFs.
-   - Update document `processingStatus` to `EXTRACTING` / `MATCHING` or handle extraction failures gracefully.
-2. **TASK-017 — OCR integration for scanned PDFs**:
+1. **TASK-016 — Native PDF text extraction (COMPLETED)**:
+   - Extracted raw text content from native text-based legal PDFs using `pdf-parse`.
+   - Built `ITextExtractor` abstraction and `DocumentProcessingService` orchestrator.
+   - Updated document `processingStatus` through `EXTRACTING` to `CLASSIFYING` and persisted `extracted_text` and `page_count` in `DocumentMetadata`.
+   - Handled unreadable scanned PDFs safely by setting status to `UNSUPPORTED`/`PROCESSING_FAILED` without data loss.
+2. **TASK-017 — OCR integration for scanned PDFs (NEXT)**:
    - Fallback OCR extraction for image-based/scanned legal PDFs.
 3. **TASK-018 — Legal document entity & metadata extraction**:
    - Extract key legal fields (case numbers, party names, court titles, filing dates).

@@ -5,6 +5,7 @@ import { authorizeResourceOwnership } from '../middleware/authz.middleware.js';
 import { requireValidPdfUpload } from '../middleware/upload.middleware.js';
 import { DocumentService } from '../services/document.service.js';
 import { sendSuccess, sendError } from '../utils/api-response.js';
+import { TenantAccessDeniedError } from '../utils/authorization.js';
 import { prisma } from '../db/client.js';
 
 const router = Router();
@@ -174,6 +175,43 @@ router.get(
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to retrieve document';
       sendError(res, message, 500, 'DOCUMENT_RETRIEVAL_ERROR');
+    }
+  }
+);
+
+/**
+ * POST /api/v1/documents/:id/extract
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Triggers native PDF text extraction and metadata persistence.
+ */
+router.post(
+  '/:id/extract',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+
+      const { defaultDocumentProcessingService } = await import('../services/document-processing.service.js');
+      const result = await defaultDocumentProcessingService.processTextExtraction(organizationId, documentId);
+
+      if (!result.success) {
+        sendError(res, result.error || 'Text extraction failed', 400, 'EXTRACTION_FAILED', [
+          { field: 'documentId', message: result.error || 'Text extraction failed' },
+        ]);
+        return;
+      }
+
+      sendSuccess(res, result, 200);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to process document text extraction';
+      sendError(res, message, 500, 'EXTRACTION_ERROR');
     }
   }
 );

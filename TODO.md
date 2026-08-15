@@ -260,7 +260,7 @@ Acceptance:
 
 ## TASK-016 — Native PDF text extraction
 
-Status: READY
+Status: DONE
 
 Goal:
 Extract text from text-based PDFs.
@@ -274,7 +274,7 @@ Acceptance:
 
 ## TASK-017 — OCR abstraction
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Add OCR fallback for scanned PDFs.
@@ -648,4 +648,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-016 — Native PDF text extraction.**
+**TASK-017 — OCR abstraction.**
