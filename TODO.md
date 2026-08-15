@@ -196,7 +196,7 @@ Acceptance:
 
 ## TASK-012 — Document model
 
-Status: READY
+Status: DONE
 
 Goal:
 Create document schema.
@@ -213,7 +213,7 @@ Acceptance:
 
 ## TASK-013 — PDF upload API
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Upload a PDF and persist it safely.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-012 — Document model.**
+**TASK-013 — PDF upload API.**

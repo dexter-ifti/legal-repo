@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) underway: Object Storage Abstraction live (`Backend/src/storage/`).
+Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) active: Document database schema and model unit test suite established (`Backend/tests/unit/document-model.test.ts`).
 
-`IStorageProvider` interface implemented with `LocalStorageProvider` (for local dev/tests) and `SupabaseStorageProvider` (for cloud storage), supporting private bucket storage, strict tenant-scoped storage key formatting (`${organizationId}/${folder}/${fileId}_${fileName}`), temporary signed download URLs (`getSignedUrl`), and buffer retrieval/deletion capabilities. (TASK-001 through TASK-011 complete). Next step is TASK-012 (Document model).
+`Document` model enforces tenant-scoping (`organizationId`), supports unassigned initial uploads (`caseId: null` implementing the Upload First principle), preserves `originalFilename`, records private `storageKey`, stores `sha256` checksums for deduplication, tracks `processingStatus` (`UPLOADED`, `EXTRACTING`, `MATCHING`, `FILED`, `FAILED`) and `matchStatus` (`NOT_STARTED`, `AUTO_MATCHED`, `CONFIRMATION_REQUIRED`, `NO_MATCH`). (TASK-001 through TASK-012 complete). Next step is TASK-013 (PDF upload API).
 
 ---
 

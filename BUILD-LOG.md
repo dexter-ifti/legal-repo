@@ -411,6 +411,32 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — TASK-012 Document Model Established
+
+### Built
+- Verified and refined `Document` schema (`Backend/prisma/schema.prisma`) satisfying all acceptance criteria: mandatory tenant scoping (`organizationId`), optional `caseId` (`null` by default for Upload First principle), original filename preservation (`originalFilename`), private storage key (`storageKey`), SHA-256 integrity hash (`sha256`), `processingStatus` enum (`UPLOADED`, `EXTRACTING`, `MATCHING`, `FILED`, `FAILED`), and `matchStatus` enum (`NOT_STARTED`, `AUTO_MATCHED`, `CONFIRMATION_REQUIRED`, `NO_MATCH`).
+- Configured database compound indexes: `[organizationId]`, `[organizationId, sha256]`, and `[organizationId, caseId]`.
+- Implemented comprehensive Prisma database unit test suite (`Backend/tests/unit/document-model.test.ts`) covering unassigned document creation (`caseId: null`), case assignment, SHA-256 compound index query, tenant-isolated lookups using `buildTenantWhereClause`, and cascade deletion.
+
+### Decisions
+- Initial uploads allow `caseId: null` to uphold the core product rule: Advocates should be able to upload documents immediately without pre-selecting a case.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 87 passing tests (82 Backend, 5 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Indexing `[organizationId, sha256]` enables instant tenant-isolated deduplication checks during high-volume document ingestion.
+
+### Next
+- TASK-013 — PDF upload API.
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title
