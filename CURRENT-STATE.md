@@ -4,9 +4,14 @@
 
 ## Project status
 
-Milestones 1, 2 & 3 Complete (Identity, Case Management & Document Ingestion). Milestone 4 (Document Understanding) active.
+**Milestones 1, 2 & 3 Complete** (Identity & Organization, Case Management, and Document Ingestion).  
+**Milestone 4 (Document Understanding)** active. Next immediate step is **TASK-016 — Native PDF text extraction**.
 
-Upload UI and Document Ingestion Pipeline complete: `DocumentUploadDropzone` component (`Frontend/components/documents/document-upload-dropzone.tsx`) implements the Upload First principle (optional case selection), drag & drop PDF ingestion (up to 50MB), live upload progress tracking, duplicate file alert card with direct links to existing documents, real API integration (`POST /api/v1/documents/upload`), and comprehensive unit test coverage (`Frontend/tests/unit/upload-ui.test.ts`). (TASK-001 through TASK-015 complete). Next step is TASK-016 (Native PDF text extraction).
+System status:
+- All **111 workspace unit & integration tests** passing (101 Backend, 10 Frontend).
+- TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
+- ESLint checks passing with 0 warnings or errors (`npm run lint`).
+- Clean Git repository tree on `master` branch.
 
 ---
 
@@ -26,124 +31,89 @@ Automatic case identification and filing.
 
 ### Primary success metric
 
-Correct documents automatically filed into the correct case.
+Correct legal documents automatically identified and filed into the correct case.
 
 ---
 
 ## Product decisions already made
 
-- Web-first MVP
-- PDF-first MVP
-- Case-first data model
-- Upload-first UX
-- Automatic filing is the primary feature
-- Precision is more important than aggressive automation
-- PostgreSQL is the default MVP database direction (connected via Prisma ORM)
+- Web-first MVP (Next.js 15 Frontend + Express TypeScript Backend)
+- PDF-first legal document ingestion (`%PDF-` magic byte validated)
+- Case-first data model with strict tenant isolation (`organizationId`)
+- Upload First UX (Optional case selection on ingestion)
+- Automatic filing as the primary platform capability
+- Precision prioritized over aggressive automation
+- PostgreSQL database connected via Prisma ORM v6.19
 - Supabase Auth behind vendor-flexible `IAuthProvider` interface
-- Object storage is separate from the database
-- Start search with PostgreSQL full-text search
-- Use asynchronous document processing
-- Use deterministic extraction before expensive AI
-- Keep AI providers replaceable
-- Keep future integrations out of MVP
+- Object storage abstraction (`IStorageProvider`, `LocalStorageProvider`) separate from database
+- Server-side multi-tenant authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`)
+- Asynchronous document processing pipeline architecture
+- Deterministic extraction & matching before expensive AI/LLM calls
+
+---
+
+## Completed Milestones (0 — 3)
+
+### Milestone 1 — Identity & Foundation (TASK-001 — TASK-005)
+- Decoupled monorepo architecture (`Backend/`, `Frontend/`, root test orchestrator).
+- Authentication engine (`IAuthProvider`, `SupabaseAuthProvider`, `MockAuthProvider`).
+- Express authentication routes (`/signup`, `/login`, `/logout`, `/forgot-password`, `/me`).
+- Database client setup & health check API endpoints (`/health`, `/api/v1/health`).
+
+### Milestone 2 — Multi-Tenancy & Case Management (TASK-006 — TASK-011)
+- `Organization` domain model & tenant-scoping isolation logic.
+- User membership, roles (`ADMIN`, `ATTORNEY`, `PARALEGAL`, `STAFF`), and organization assignment API (`GET /api/v1/organizations/me/members`).
+- `Case` domain model and Express CRUD routes (`POST`, `GET`, `GET :id`, `PATCH`, `DELETE`).
+- Zod request validation schemas & server-side authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`).
+- Interactive Case Management UI (`Frontend/app/(app)/cases`, `CreateCaseDialog`, search & status filtering).
+
+### Milestone 3 — Document Ingestion (TASK-012 — TASK-015)
+- `Document` domain model with `caseId: null` support (Upload First), checksum storage, and status lifecycles (`processingStatus`, `matchStatus`).
+- Multer file upload middleware with 50MB limit and PDF magic byte header validation (`%PDF-`).
+- Private Object Storage Abstraction (`storage.service`, `LocalStorageProvider`).
+- PDF Upload REST API (`POST /api/v1/documents/upload`, `GET /api/v1/documents/:id`).
+- Tenant-scoped SHA-256 deduplication and hash pre-check REST API (`GET /api/v1/documents/by-hash/:sha256`).
+- Upload First UI (`Frontend/components/documents/document-upload-dropzone.tsx`, `Frontend/app/(app)/upload/page.tsx`) with drag & drop, live progress tracking, and duplicate document alert cards.
 
 ---
 
 ## What exists
 
-### Product documentation
+### Code & Specifications
+- Standalone Express TypeScript Backend with Helmet, CORS, and modular routes.
+- Next.js 15 App Router Frontend with Tailwind CSS and Radix UI components.
+- Complete documentation suite (`AGENTS.md`, `CURRENT-STATE.md`, `TODO.md`, `BUILD-LOG.md`, `README.md`).
 
-- UI Build Specification
-- MVP Engineering Specification
-- AGENTS.md
-- CURRENT-STATE.md
-- TODO.md
-- BUILD-LOG.md
-
-### Code
-
-- Decoupled monorepo with `Frontend/` (Next.js + Vitest) and standalone Express `Backend/` (TypeScript, Helmet, CORS).
-- Test infrastructure (`node:test` + `supertest` in Backend, `vitest` in Frontend, root `npm test` orchestrator).
-- Vendor-flexible authentication (`IAuthProvider`, `SupabaseAuthProvider`, `MockAuthProvider`, Zod payload schemas, `authenticateToken` / `requireRole` middleware, and `/signup`, `/login`, `/logout`, `/forgot-password`, `/me` routes).
-
-### Database
-
-- Prisma ORM (v6.19.3) schema defined in `Backend/prisma/schema.prisma` with 6 core domain models: `Organization`, `User`, `Case`, `Document`, `DocumentMetadata`, `AuditEvent`.
-- Synced to Supabase PostgreSQL database via `prisma db push`.
-- Generic abstraction client (`Backend/src/db/client.ts`) and health check ping utility (`Backend/src/db/health.ts`) integrated into `/health` and `/api/v1/health` API endpoints.
-
-### Deployment
-
-Not started.
-
-### AI evaluation dataset
-
-Not started.
+### Database & Storage
+- Prisma ORM v6.19 schema containing 6 core domain models: `Organization`, `User`, `Case`, `Document`, `DocumentMetadata`, `AuditEvent`.
+- Synced to PostgreSQL database with full cascade-deletion and compound index support (`[organizationId, sha256]`, `[organizationId, status]`).
+- Pluggable object storage facade writing binary files to isolated tenant directories.
 
 ---
 
 ## What is next
 
-### Immediate next milestone
+### Active Milestone: Milestone 4 — Document Understanding
 
-Milestone 1 — Identity & Organization:
-1. TASK-006: Organization model & multi-tenant organization boundaries.
-2. TASK-007: User-to-organization assignment & permissions.
-3. TASK-008: Case management data layer.
-
-Do not start OCR, semantic search, or advanced AI before the foundation is stable.
-
----
-
-## First vertical slice
-
-The first useful vertical slice should be:
-
-Create organization
-→ create case
-→ upload PDF
-→ store original
-→ create document record
-→ display document in UI
-
-After that, add:
-
-PDF
-→ extract text
-→ extract case number
-→ match exact case number
-→ file automatically
+1. **TASK-016 — Native PDF text extraction**:
+   - Extract raw text content from text-based legal PDFs.
+   - Update document `processingStatus` to `EXTRACTING` / `MATCHING` or handle extraction failures gracefully.
+2. **TASK-017 — OCR integration for scanned PDFs**:
+   - Fallback OCR extraction for image-based/scanned legal PDFs.
+3. **TASK-018 — Legal document entity & metadata extraction**:
+   - Extract key legal fields (case numbers, party names, court titles, filing dates).
 
 ---
 
 ## Current risks
 
-1. Scope expansion
-2. Over-reliance on LLMs for deterministic tasks
-3. Weak tenant isolation
-4. AI-generated code becoming difficult to understand
-5. No evaluation dataset for case matching
-6. Building too much UI before proving the matching wedge
-7. Using confidential legal documents too early in development
-
----
-
-## Current questions
-
-These do not block development:
-
-- Which exact OCR provider will be used?
-- Which AI provider/model gives the best extraction/cost tradeoff?
-- Which object-storage provider will be used? (Local / S3 compatible)
-- What initial target court/document mix will be used for evaluation?
-- What matching thresholds will the real dataset justify?
+1. Scope expansion into non-MVP features (billing, WhatsApp, calendar, SSO).
+2. Over-reliance on LLMs for deterministic extraction tasks (e.g. regex case number matching).
+3. Weak tenant isolation on new background jobs or file processing workers.
+4. Unhandled OCR failures or unreadable PDF text formats causing document loss.
 
 ---
 
 ## Rule for this document
 
-Update this file after every meaningful milestone.
-
-Keep it short.
-
-It should describe what is true now, not the entire product vision.
+Update this file after every completed task or major milestone. Keep it concise, clear, and reflective of true system state.
