@@ -514,7 +514,40 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Optional case selection with clean fallback defaults (`caseId: null`) preserves zero-trust API contracts while delivering a smooth UX.
 
 ### Next
-- TASK-016 — Native PDF text extraction.
+- Milestone 4 (TASK-016 — TASK-020) & Milestone 5 (TASK-021 — TASK-026).
+
+---
+
+## 2026-08-15 — Milestone 4 (Document Understanding) & Milestone 5 (Case Matching Engine) Complete
+
+### Built
+- **TASK-016 (Native PDF text extraction)**: Integrated `pdf-parse` in `DocumentProcessingService` for native text extraction from digital PDFs.
+- **TASK-017 (OCR Abstraction & Mistral OCR Provider)**: Created `IOcrProvider` interface with `MistralOcrProvider` (using Mistral OCR API) and `MockOcrProvider` for scanned PDFs fallback.
+- **TASK-018 & TASK-019 (Legal Entity & Case Number Extraction)**: Built `LegalRegexMatcher` for Indian court formats (`W.P.`, `CRL.M.C.`, `COMMERCIAL SUIT`, `SLP`, 16-char CNR numbers, parties, courts, dates) and `MetadataExtractionService`.
+- **TASK-020 (Legal Document Classification)**: Implemented `DocumentClassifierService` with the 12 MVP taxonomy types (`COURT_ORDER`, `PETITION`, `NOTICE`, `AFFIDAVIT`, `VAKALATNAMA`, etc.) and pipeline integration into `DocumentProcessingService`.
+- **TASK-021 (Candidate Generation Service)**: Built `CandidateGenerationService` querying tenant-isolated active cases using exact case numbers, CNR numbers, party names, and court forums.
+- **TASK-022 & TASK-023 (Deterministic Scorer & Decision Engine)**: Created `CaseMatcherService` with weighted signal scoring (CNR +0.95, Case Number +0.90, Party +0.40–0.70, Court +0.15) and server-side decision thresholds (`AUTO_MATCHED` $\ge 0.85$, `CONFIRMATION_REQUIRED` $0.50–0.84$, `NO_MATCH` $< 0.50$).
+- **TASK-024 & TASK-025 (Match Confirmation & Reassignment REST APIs)**: Built `POST /api/v1/documents/:id/match`, `POST /api/v1/documents/:id/confirm-match`, and `POST /api/v1/documents/:id/reassign` with audit logging (`DOCUMENT_CONFIRMED`, `DOCUMENT_REASSIGNED`) and feedback tracking.
+- **TASK-026 (Match Confirmation UI & Filing Inbox)**: Built `MatchingCandidatesCard`, `ReassignCaseDialog`, and Filing Inbox view (`Frontend/app/(app)/inbox/page.tsx`) for advocates to review and file unassigned uploads.
+
+### Decisions
+- Applied deterministic signal scoring prior to any LLM operations to keep case matching fast, reliable, cheap, and auditable.
+- Kept all threshold evaluations strictly server-side to enforce tenant isolation and security rules.
+
+### Problems
+- Handled offline test environment database connection timeouts by creating pure unit tests for candidate scoring algorithm.
+
+### Tests / metrics
+- Backend `npm run typecheck`: 0 errors.
+- Backend `npm run lint`: 0 errors.
+- Unit Test Suite: 23/23 tests passing with 0 failures.
+- Frontend Production Build (`npm run build`): 13/13 static pages compiled successfully.
+
+### Learning
+- Weighted signal composition with deterministic thresholds guarantees exact match precision while allowing human confirmation when metadata is partial or ambiguous.
+
+### Next
+- Milestone 6 — TASK-027 Search Index & Document Search.
 
 ---
 
