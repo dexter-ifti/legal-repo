@@ -91,13 +91,13 @@ Prefer:
 
 - TypeScript
 - Node.js
-- Next.js API routes/server actions OR a dedicated backend service
+- express
 
 Do not create unnecessary microservices for MVP.
 
 ### Database
 
-PostgreSQL.
+PostgreSQL. ( supabase ) for now...
 
 ### Storage
 
@@ -105,8 +105,6 @@ S3-compatible object storage.
 
 Candidates:
 
-- AWS S3
-- Cloudflare R2
 - Supabase Storage
 
 ### Queue
