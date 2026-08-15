@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestone 1 Complete. Milestone 2 (Cases) backend implementation live: `Case` database model and full tenant-isolated Case CRUD API endpoints live (`POST /api/v1/cases`, `GET /api/v1/cases`, `GET /api/v1/cases/:id`, `PATCH /api/v1/cases/:id`, `DELETE /api/v1/cases/:id`).
+Milestones 1 & 2 Complete (Identity, Organization & Case Management).
 
-Express backend equipped with `case.service.ts`, `case.routes.ts` (with Zod schemas, search/pagination, and `authorizeResourceOwnership` middleware), and comprehensive unit/integration test coverage (TASK-001 through TASK-009 complete). Next step is TASK-010 (Case UI).
+Milestone 2 (Cases) fully operational end-to-end: Case database model, tenant-isolated Case CRUD API, and interactive Next.js Case UI (Case list, real-time search & status filtering, `CreateCaseDialog` modal form with complete schema validation, and `/cases/[id]` detail view with metadata cards). (TASK-001 through TASK-010 complete). Next step is TASK-011 (Object storage abstraction — Milestone 3 Document Ingestion).
 
 ---
 

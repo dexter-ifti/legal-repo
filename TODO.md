@@ -162,7 +162,7 @@ Acceptance:
 
 ## TASK-010 — Case UI
 
-Status: READY
+Status: DONE
 
 Goal:
 Build case list/create/detail UI.
@@ -180,7 +180,7 @@ Acceptance:
 
 ## TASK-011 — Object storage abstraction
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create private object-storage service.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-010 — Case UI.**
+**TASK-011 — Object storage abstraction.**

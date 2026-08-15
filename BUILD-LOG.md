@@ -354,6 +354,34 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — TASK-010 Case UI Established (Milestone 2 Complete)
+
+### Built
+- Implemented `CreateCaseDialog` modal component (`Frontend/components/cases/create-case-dialog.tsx`) with complete Case schema form inputs (`title`, `caseNumber`, `cnrNumber`, `court`, `judge`, `clientName`, `opposingParty`, `caseType`, `notes`), client validation, error messages, and submission loading feedback.
+- Updated Cases List page (`Frontend/app/(app)/cases/page.tsx`) with "New Case" modal trigger, real-time search bar across case title, CNR number, case number, or client name, status dropdown filter (`All`, `Active`, `Pending`, `Closed`), and high-aesthetics glassmorphism case cards displaying full metadata.
+- Updated Case Detail view (`Frontend/app/(app)/cases/[id]/page.tsx`) showcasing metadata cards (Client, Opposing Party, Court/Forum, Presiding Judge, Case Brief/Notes) and linked case documents tab section.
+- Added Vitest unit test suite (`Frontend/tests/unit/cases-ui.test.ts`) validating search filter algorithms and status selection logic.
+
+### Decisions
+- Standardized status styling using curated soft HSL color badges (`bg-success-soft text-success`, `bg-warning-soft text-warning`, `bg-neutral-soft text-neutral-status`).
+- Added full support for CNR number and Presiding Judge fields to align with advocate workflow requirements.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 73 passing tests (68 Backend, 5 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Componentizing the case modal dialog and search filters ensures modular reusability when linking case pickers to document upload flows in Milestone 3.
+
+### Next
+- TASK-011 — Object storage abstraction (Milestone 3 — Document Ingestion).
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title
