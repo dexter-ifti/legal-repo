@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestones 1 & 2 Complete (Identity, Organization & Case Management).
+Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) underway: Object Storage Abstraction live (`Backend/src/storage/`).
 
-Milestone 2 (Cases) fully operational end-to-end: Case database model, tenant-isolated Case CRUD API, and interactive Next.js Case UI (Case list, real-time search & status filtering, `CreateCaseDialog` modal form with complete schema validation, and `/cases/[id]` detail view with metadata cards). (TASK-001 through TASK-010 complete). Next step is TASK-011 (Object storage abstraction — Milestone 3 Document Ingestion).
+`IStorageProvider` interface implemented with `LocalStorageProvider` (for local dev/tests) and `SupabaseStorageProvider` (for cloud storage), supporting private bucket storage, strict tenant-scoped storage key formatting (`${organizationId}/${folder}/${fileId}_${fileName}`), temporary signed download URLs (`getSignedUrl`), and buffer retrieval/deletion capabilities. (TASK-001 through TASK-011 complete). Next step is TASK-012 (Document model).
 
 ---
 

@@ -180,7 +180,7 @@ Acceptance:
 
 ## TASK-011 — Object storage abstraction
 
-Status: READY
+Status: DONE
 
 Goal:
 Create private object-storage service.
@@ -196,7 +196,7 @@ Acceptance:
 
 ## TASK-012 — Document model
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create document schema.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-011 — Object storage abstraction.**
+**TASK-012 — Document model.**

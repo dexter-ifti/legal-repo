@@ -156,6 +156,18 @@ The platform enforces zero-trust tenant boundary protection using server-side au
 
 ---
 
+## 🗄️ Private Object Storage Abstraction
+
+Legal document files are stored securely using a provider-agnostic object storage service (`Backend/src/storage/`):
+
+- **`IStorageProvider`**: TypeScript interface decoupling business logic from cloud vendors. Supports `uploadFile`, `getSignedUrl`, `deleteFile`, and `getFileBuffer`.
+- **`LocalStorageProvider`**: Filesystem-backed private storage provider for zero-dependency local development and automated testing (`Backend/.storage/`).
+- **`SupabaseStorageProvider`**: Production private cloud storage provider wrapping Supabase private buckets.
+- **Tenant Path Isolation**: Enforces tenant key structure: `${organizationId}/${folder}/${uniqueId}_${fileName}`.
+- **Private Access**: All document downloads require server authorization and return temporary signed URLs (`getSignedUrl`).
+
+---
+
 ## 📋 Engineering Governance & Guidelines
 
 All development on this codebase follows strict engineering, security, and scope-control guidelines detailed in [`AGENTS.md`](./AGENTS.md).

@@ -378,7 +378,36 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Componentizing the case modal dialog and search filters ensures modular reusability when linking case pickers to document upload flows in Milestone 3.
 
 ### Next
-- TASK-011 — Object storage abstraction (Milestone 3 — Document Ingestion).
+- TASK-011 — Object storage abstraction.
+
+---
+
+## 2026-08-15 — TASK-011 Object Storage Abstraction Established (Milestone 3 Initiated)
+
+### Built
+- Implemented `IStorageProvider` interface (`Backend/src/storage/StorageProvider.ts`) defining contracts for `uploadFile`, `getSignedUrl`, `deleteFile`, and `getFileBuffer`.
+- Implemented `LocalStorageProvider` (`Backend/src/storage/LocalStorageProvider.ts`) providing private filesystem storage for local development and automated testing (`Backend/.storage/`).
+- Implemented `SupabaseStorageProvider` (`Backend/src/storage/SupabaseStorageProvider.ts`) wrapping Supabase Storage private buckets.
+- Implemented storage factory and facade (`Backend/src/storage/storage.service.ts`) selecting provider based on `STORAGE_PROVIDER` (`local` | `supabase`).
+- Created unit tests (`Backend/tests/unit/storage.test.ts`) and multi-tenant path isolation integration tests (`Backend/tests/integration/storage.test.ts`).
+
+### Decisions
+- Strictly enforced tenant isolation in object key format: `${organizationId}/${folder}/${uniqueId}_${safeFileName}`.
+- Prohibited public bucket read access; all file downloads require server authorization and return temporary signed URLs (`getSignedUrl`).
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 81 passing tests (76 Backend, 5 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Provider abstraction allows running local unit and integration tests without network latency or external cloud dependencies while guaranteeing private tenant key isolation.
+
+### Next
+- TASK-012 — Document model.
 
 ---
 
