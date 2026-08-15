@@ -38,7 +38,8 @@ Correct documents automatically filed into the correct case.
 - Upload-first UX
 - Automatic filing is the primary feature
 - Precision is more important than aggressive automation
-- PostgreSQL is the default MVP database direction
+- PostgreSQL is the default MVP database direction (connected via Prisma ORM)
+- Supabase Auth behind vendor-flexible `IAuthProvider` interface
 - Object storage is separate from the database
 - Start search with PostgreSQL full-text search
 - Use asynchronous document processing
@@ -61,11 +62,15 @@ Correct documents automatically filed into the correct case.
 
 ### Code
 
-Frontend as Per UI Build Specification with dummy data
+- Decoupled monorepo with `Frontend/` (Next.js + Vitest) and standalone Express `Backend/` (TypeScript, Helmet, CORS).
+- Test infrastructure (`node:test` + `supertest` in Backend, `vitest` in Frontend, root `npm test` orchestrator).
+- Vendor-flexible authentication (`IAuthProvider`, `SupabaseAuthProvider`, `MockAuthProvider`, Zod payload schemas, `authenticateToken` / `requireRole` middleware, and `/signup`, `/login`, `/logout`, `/forgot-password`, `/me` routes).
 
 ### Database
 
-Not started.
+- Prisma ORM (v6.19.3) schema defined in `Backend/prisma/schema.prisma` with 6 core domain models: `Organization`, `User`, `Case`, `Document`, `DocumentMetadata`, `AuditEvent`.
+- Synced to Supabase PostgreSQL database via `prisma db push`.
+- Generic abstraction client (`Backend/src/db/client.ts`) and health check ping utility (`Backend/src/db/health.ts`) integrated into `/health` and `/api/v1/health` API endpoints.
 
 ### Deployment
 
@@ -81,19 +86,10 @@ Not started.
 
 ### Immediate next milestone
 
-Initialize the repository and establish the development foundation:
-
-1. Git repository
-2. application scaffold
-3. TypeScript
-4. lint/typecheck
-5. test runner
-6. environment configuration
-7. PostgreSQL connection
-8. initial schema/migrations
-9. development object storage
-10. basic auth
-11. organization model
+Milestone 1 — Identity & Organization:
+1. TASK-006: Organization model & multi-tenant organization boundaries.
+2. TASK-007: User-to-organization assignment & permissions.
+3. TASK-008: Case management data layer.
 
 Do not start OCR, semantic search, or advanced AI before the foundation is stable.
 
@@ -134,12 +130,11 @@ PDF
 
 ## Current questions
 
-These do not block repository initialization:
+These do not block development:
 
 - Which exact OCR provider will be used?
 - Which AI provider/model gives the best extraction/cost tradeoff?
-- Which object-storage provider will be used?
-- Which authentication provider will be used?
+- Which object-storage provider will be used? (Local / S3 compatible)
 - What initial target court/document mix will be used for evaluation?
 - What matching thresholds will the real dataset justify?
 
