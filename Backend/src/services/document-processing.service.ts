@@ -217,6 +217,57 @@ export class DocumentProcessingService {
       };
     }
   }
+
+  /**
+   * Idempotent Pipeline Retry Handler (TASK-032).
+   * Safe retry mechanism resetting metadata errors without deleting original upload binaries.
+   */
+  async retryDocumentPipeline(organizationId: string, documentId: string) {
+    if (!organizationId || !documentId) {
+      throw new Error('organizationId and documentId are required for pipeline retry');
+    }
+
+    const document = await prisma.document.findFirst({
+      where: buildTenantWhereClause(organizationId, { id: documentId }),
+    });
+
+    if (!document) {
+      throw new TenantAccessDeniedError('Document not found or access denied', 404);
+    }
+    assertTenantOwnership(document.organizationId, organizationId);
+
+    // Clear previous extraction errors idempotently
+    await prisma.documentMetadata.deleteMany({
+      where: {
+        documentId,
+        fieldName: 'extraction_error',
+      },
+    });
+
+    // Reset status to QUEUED
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { processingStatus: 'QUEUED' },
+    });
+
+    // Emit Audit Event for RETRY action
+    await prisma.auditEvent.create({
+      data: {
+        organizationId: document.organizationId,
+        userId: document.uploadedBy,
+        entityType: 'DOCUMENT',
+        entityId: document.id,
+        eventType: 'DOCUMENT_RETRIED',
+        metadata: {
+          previousStatus: document.processingStatus,
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+
+    // Re-trigger pipeline execution
+    return this.processDocumentPipeline(organizationId, documentId);
+  }
 }
 
 export const defaultDocumentProcessingService = new DocumentProcessingService();

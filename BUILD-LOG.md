@@ -580,6 +580,32 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — Milestone 7 Complete (Audit & Reliability)
+
+### Built
+- **Audit Trail Service & REST API (`TASK-031`)**: Implemented `AuditService` in `Backend/src/services/audit/audit.service.ts` for immutable event logging (`DOCUMENT_UPLOADED`, `DOCUMENT_CLASSIFIED`, `DOCUMENT_MATCHED`, `DOCUMENT_CONFIRMED`, `DOCUMENT_REASSIGNED`, `DOCUMENT_ACCESSED`, `DOCUMENT_RETRIED`) and `GET /api/v1/audit-logs` endpoint with pagination and tenant isolation.
+- **Pipeline Retry & Idempotency (`TASK-032`)**: Implemented `POST /api/v1/documents/:id/retry` and `retryDocumentPipeline` in `DocumentProcessingService`. Idempotently clears previous metadata error states and resets processing status without mutating original upload binaries in storage or creating duplicate records.
+- **End-to-End Golden Path Test Suite (`TASK-033`)**: Built `Backend/tests/unit/golden-path.test.ts` validating the complete end-to-end legal document pipeline (`Create Case` -> `Upload PDF` -> `Text Extract & OCR` -> `Extract Metadata` -> `Classify Taxonomy` -> `Match Case Candidate` -> `File / Confirm` -> `Search` -> `Download`).
+
+### Decisions
+- Centralized audit trail persistence via `AuditService` and `prisma.auditEvent`.
+- Pipeline retries reset metadata errors idempotently without deleting or mutating original raw PDF binaries in object storage.
+
+### Tests / metrics
+- Backend `npm run typecheck`: 0 errors.
+- Backend `npm run lint`: 0 errors.
+- Frontend `npm run typecheck`: 0 errors.
+- Frontend `npm run build`: 13/13 static pages compiled successfully.
+- Unit Test Suite: 35/35 tests passing 100% offline (`golden-path.test.ts` included).
+
+### Learning
+- Idempotent status resetting combined with immutable original object storage guarantees reliable pipeline recovery from transient extraction errors without data loss or duplicate filings.
+
+### Next
+- Milestone 8 — Evaluation & TASK-034 Create Initial Matching Dataset.
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title

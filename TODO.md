@@ -495,7 +495,7 @@ Acceptance:
 
 ## TASK-031 — Audit trail
 
-Status: READY
+Status: DONE
 
 Goal:
 Record important document actions.
@@ -504,7 +504,7 @@ Record important document actions.
 
 ## TASK-032 — Processing retry/idempotency
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Ensure jobs can safely retry.
@@ -519,7 +519,7 @@ Acceptance:
 
 ## TASK-033 — End-to-end golden path
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Automate:
@@ -538,7 +538,7 @@ create case
 
 ## TASK-034 — Create initial matching dataset
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create 100 labeled test documents.

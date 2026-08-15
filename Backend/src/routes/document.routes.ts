@@ -4,6 +4,7 @@ import { requireTenant, TenantRequest } from '../middleware/tenant.middleware.js
 import { authorizeResourceOwnership } from '../middleware/authz.middleware.js';
 import { requireValidPdfUpload } from '../middleware/upload.middleware.js';
 import { DocumentService } from '../services/document.service.js';
+import { defaultDocumentProcessingService } from '../services/document-processing.service.js';
 import { sendSuccess, sendError } from '../utils/api-response.js';
 import { TenantAccessDeniedError } from '../utils/authorization.js';
 import { prisma } from '../db/client.js';
@@ -510,6 +511,35 @@ router.post(
       }
       const message = err instanceof Error ? err.message : 'Failed to reassign document case';
       sendError(res, message, 500, 'REASSIGN_ERROR');
+    }
+  }
+);
+
+/**
+ * POST /api/v1/documents/:id/retry
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Safely resets document extraction errors and re-triggers document processing pipeline (TASK-032).
+ */
+router.post(
+  '/:id/retry',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const documentId = req.params.id;
+      const organizationId = req.organizationId!;
+
+      const result = await defaultDocumentProcessingService.retryDocumentPipeline(organizationId, documentId);
+
+      sendSuccess(res, result, 200);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to retry document processing';
+      sendError(res, message, 500, 'RETRY_ERROR');
     }
   }
 );
