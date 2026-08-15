@@ -39,6 +39,7 @@ export class SupabaseStorageProvider implements IStorageProvider {
       });
 
     if (error) {
+      console.error('[SupabaseStorageProvider] Upload error details:', error);
       throw new Error(`Supabase Storage upload failed: ${error.message}`);
     }
 

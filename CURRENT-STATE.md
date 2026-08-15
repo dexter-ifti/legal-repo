@@ -46,7 +46,7 @@ Correct legal documents automatically identified and filed into the correct case
 - Precision prioritized over aggressive automation
 - PostgreSQL database connected via Prisma ORM v6.19
 - Supabase Auth behind vendor-flexible `IAuthProvider` interface
-- Object storage abstraction (`IStorageProvider`, `LocalStorageProvider`) separate from database
+- Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`, `LocalStorageProvider` with automatic fallback) separate from database
 - Server-side multi-tenant authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`)
 - Asynchronous document processing pipeline architecture
 - Deterministic extraction & matching before expensive AI/LLM calls
