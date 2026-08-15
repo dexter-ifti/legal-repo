@@ -1,7 +1,7 @@
 import { prisma } from '../db/client.js';
 import { buildTenantWhereClause, assertTenantOwnership } from '../utils/authorization.js';
 import { getStorageFileBuffer } from '../storage/storage.service.js';
-import { defaultPdfTextExtractor, PdfTextExtractorService } from './text-extraction/pdf-text-extractor.service.js';
+import { defaultPdfTextExtractor } from './text-extraction/pdf-text-extractor.service.js';
 import { ITextExtractor } from './text-extraction/text-extractor.interface.js';
 
 export class DocumentProcessingService {

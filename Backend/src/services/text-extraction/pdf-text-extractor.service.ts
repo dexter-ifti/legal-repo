@@ -1,5 +1,11 @@
-import pdfParse from 'pdf-parse';
+import pdfParseModule from 'pdf-parse';
 import { ITextExtractor, TextExtractionResult } from './text-extractor.interface.js';
+
+// Compatible CJS function resolution across tsc and tsx runtime
+const parsePdf: (buffer: Buffer) => Promise<{ text: string; numpages: number; info?: Record<string, unknown> }> =
+  typeof pdfParseModule === 'function'
+    ? (pdfParseModule as unknown as (buffer: Buffer) => Promise<{ text: string; numpages: number; info?: Record<string, unknown> }>)
+    : ((pdfParseModule as unknown as { default: (buffer: Buffer) => Promise<{ text: string; numpages: number; info?: Record<string, unknown> }> }).default);
 
 export class PdfTextExtractorService implements ITextExtractor {
   /**
@@ -16,7 +22,7 @@ export class PdfTextExtractorService implements ITextExtractor {
     }
 
     try {
-      const data = await pdfParse(pdfBuffer);
+      const data = await parsePdf(pdfBuffer);
       const text = (data.text || '').trim();
       const pageCount = data.numpages || 1;
 
