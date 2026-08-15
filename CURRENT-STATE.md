@@ -4,9 +4,9 @@
 
 ## Project status
 
-Frontend and Backend foundation established (TASK-001 & TASK-002 complete).
+Frontend and Backend foundation established, test infrastructure active (TASK-001, TASK-002 & TASK-003 complete).
 
-Dedicated Express + TypeScript API server in `Backend/` created with `/health` and `/api/v1/health` routes, standard JSON response handlers, and unit test suite. Next step is TASK-003 (test infrastructure expansion).
+Express backend unit & `supertest` HTTP integration testing set up in `Backend/`. Vitest unit testing set up in `Frontend/`. Root `npm test` orchestrates full workspace suite execution. Next step is TASK-004 (PostgreSQL integration).
 
 ---
 

@@ -1,0 +1,11 @@
+{
+  "name": "legal-saas-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "npm run --prefix Backend test && npm run --prefix Frontend test",
+    "typecheck": "npm run --prefix Backend typecheck && npm run --prefix Frontend typecheck",
+    "lint": "npm run --prefix Backend lint && npm run --prefix Frontend lint",
+    "build": "npm run --prefix Backend build && npm run --prefix Frontend build"
+  }
+}

@@ -50,7 +50,7 @@ Acceptance:
 
 ## TASK-003 — Add test infrastructure
 
-Status: READY
+Status: DONE
 
 Goal:
 Create unit and integration test foundations.
@@ -64,7 +64,7 @@ Acceptance:
 
 ## TASK-004 — Add PostgreSQL
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Connect application to PostgreSQL.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-003 — Add test infrastructure.**
+**TASK-004 — Add PostgreSQL.**

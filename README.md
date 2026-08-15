@@ -93,12 +93,31 @@ Indexing, Search & Document Retrieval
    npm run dev       # Starts Next.js app on http://localhost:3000
    ```
 
-5. **Typecheck & Linting:**
+5. **Running Tests & Quality Checks:**
    ```bash
-   # Run in Frontend/ or Backend/
+   # Run all workspace test suites (Backend + Frontend)
+   npm test
+
+   # Run typechecks and linting across the workspace
    npm run typecheck
    npm run lint
+
+   # Service-specific testing
+   npm --prefix Backend test     # Express unit & supertest integration tests
+   npm --prefix Frontend test    # Vitest component & utility tests
    ```
+
+---
+
+## 🧪 Testing Infrastructure & CI/CD Commands
+
+| Command | Scope | Description |
+| :--- | :--- | :--- |
+| `npm test` | Workspace Root | Executes unit & integration tests across `Backend` and `Frontend` |
+| `npm run typecheck` | Workspace Root | Verifies TypeScript static types across both projects |
+| `npm run lint` | Workspace Root | Runs ESLint analysis across both projects |
+| `npm --prefix Backend test` | Backend Service | Runs `tsx --test` unit tests and `supertest` HTTP assertions |
+| `npm --prefix Frontend test` | Frontend Service | Runs `vitest` unit test suite |
 
 ---
 

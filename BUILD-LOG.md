@@ -136,7 +136,37 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Structuring `Backend/` as a standalone TypeScript project allows independent testing and deployment from `Frontend/`.
 
 ### Next
-- TASK-003 — Add test infrastructure.
+- TASK-004 — Add PostgreSQL.
+
+---
+
+## 2026-08-15 — TASK-003 Test Infrastructure Established
+
+### Built
+- Installed `supertest` in `Backend/` for HTTP endpoint integration testing.
+- Created `Backend/tests/unit/api-response.test.ts` for unit testing response utilities.
+- Created `Backend/tests/integration/health.test.ts` using `supertest` for Express route assertions (`/health`, `/api/v1/health`, 404 fallback).
+- Configured Vitest test runner in `Frontend/` (`vitest.config.mts`, `Frontend/tests/unit/format.test.ts`).
+- Created root `package.json` script orchestrator to run project-wide `npm test`, `npm run typecheck`, and `npm run lint`.
+- Documented testing infrastructure and CI/CD commands in `README.md`.
+
+### Decisions
+- Separated `Backend/tests/` into `unit/` and `integration/` subdirectories.
+- Bounded HTTP integration tests directly via `supertest(app)` without binding external ports.
+
+### Problems
+- None. `npm test` at workspace root executed 10 total tests across Backend and Frontend with 0 failures.
+
+### Tests / metrics
+- Workspace Root `npm test`: 10 passing tests (7 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Orchestrating `npm test` at root simplifies continuous integration and pre-commit checks across multi-service setups.
+
+### Next
+- TASK-004 — Add PostgreSQL.
 
 ---
 
