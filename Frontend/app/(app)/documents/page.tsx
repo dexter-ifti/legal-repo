@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FileText, Search, Filter, ArrowUpDown } from 'lucide-react';
 import {
@@ -24,13 +24,61 @@ import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { documents } from '@/lib/mock-data';
 import { formatFileSize, formatRelativeTime } from '@/lib/format';
+import { useUserProfile } from '@/lib/use-user';
 
 export default function DocumentsPage() {
+  const { user } = useUserProfile();
+  const [docList, setDocList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user.isDemo) {
+      setDocList(documents);
+      setLoading(false);
+    } else if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      setLoading(true);
+
+      fetch(`${baseUrl}/api/v1/documents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.data) {
+            setDocList(
+              data.data.map((d: any) => ({
+                id: d.id,
+                title: d.originalFilename || 'Document',
+                caseName: d.case?.title || 'Unassigned Case',
+                category: d.documentType || 'Legal Document',
+                fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
+                fileSize: d.fileSize || 0,
+                pageCount: 1,
+                uploadedAt: d.uploadedAt || new Date().toISOString(),
+                status:
+                  d.matchStatus === 'AUTO_MATCH' || d.matchStatus === 'CONFIRMED'
+                    ? 'filed'
+                    : d.matchStatus === 'CONFIRMATION_REQUIRED'
+                    ? 'review'
+                    : 'uploaded',
+                priority: 'medium',
+              }))
+            );
+          } else {
+            setDocList([]);
+          }
+        })
+        .catch((err) => console.warn('Error fetching real documents:', err))
+        .finally(() => setLoading(false));
+    }
+  }, [user.isDemo]);
+
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
 
-  let filtered = documents.filter((d) => {
+  let filtered = docList.filter((d) => {
     const matchesQuery =
       !query ||
       d.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -51,7 +99,7 @@ export default function DocumentsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">Documents</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {documents.length} documents across all cases
+          {docList.length} {docList.length === 1 ? 'document' : 'documents'} across all cases
         </p>
       </div>
 

@@ -84,6 +84,32 @@ router.post(
 );
 
 /**
+ * GET /api/v1/documents
+ * Protected by authenticateToken and requireTenant.
+ * Lists all documents belonging to the authenticated tenant organization.
+ */
+router.get(
+  '/',
+  authenticateToken,
+  requireTenant,
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const docs = await prisma.document.findMany({
+        where: { organizationId },
+        include: { case: true, uploader: true },
+        orderBy: { uploadedAt: 'desc' },
+      });
+
+      sendSuccess(res, docs, 200);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to list documents';
+      sendError(res, message, 500, 'DOCUMENT_LIST_ERROR');
+    }
+  }
+);
+
+/**
  * GET /api/v1/documents/by-hash/:sha256
  * Protected by authenticateToken and requireTenant.
  * Checks if a document with the given SHA-256 hash already exists in the organization.

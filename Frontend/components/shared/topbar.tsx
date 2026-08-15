@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Sidebar } from '@/components/shared/sidebar';
-import { currentUser } from '@/lib/mock-data';
+import { useUserProfile } from '@/lib/use-user';
 
 export function Topbar({ title }: { title?: string }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const { user } = useUserProfile();
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -64,7 +65,7 @@ export function Topbar({ title }: { title?: string }) {
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-error" />
         </Button>
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-sm font-semibold text-white">
-          {currentUser.initials}
+          {user.initials}
         </div>
       </div>
     </header>

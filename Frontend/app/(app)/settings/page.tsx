@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Building2, Bell, Shield, Zap, Save, Check } from 'lucide-react';
 import {
   Card,
@@ -16,12 +16,19 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { currentUser } from '@/lib/mock-data';
+import { useUserProfile } from '@/lib/use-user';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
-  const [name, setName] = useState(currentUser.name);
-  const [email, setEmail] = useState(currentUser.email);
+  const { user } = useUserProfile();
+  const [name, setName] = useState(user.name);
+  const [email, setEmail] = useState(user.email);
+
+  useEffect(() => {
+    setName(user.name);
+    setEmail(user.email);
+  }, [user]);
+
   const [notifications, setNotifications] = useState({
     uploadComplete: true,
     reviewReady: true,
@@ -89,7 +96,7 @@ export default function SettingsPage() {
               <form onSubmit={saveProfile} className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-xl font-bold text-white">
-                    {currentUser.initials}
+                    {user.initials}
                   </div>
                   <div>
                     <Button type="button" variant="outline" size="sm">
@@ -108,7 +115,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
-                    <Input id="role" value={currentUser.role} disabled />
+                    <Input id="role" value={user.role} disabled />
                   </div>
                 </div>
                 <div className="space-y-2">

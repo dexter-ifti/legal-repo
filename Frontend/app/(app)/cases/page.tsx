@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FolderOpen, Search, Plus, Gavel, User, Building2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import {
   CreateCaseDialog,
   CreateCaseFormData,
 } from '@/components/cases/create-case-dialog';
+import { useUserProfile } from '@/lib/use-user';
 
 export interface UICaseItem {
   id: string;
@@ -40,31 +41,114 @@ export interface UICaseItem {
 }
 
 export default function CasesPage() {
-  const [caseList, setCaseList] = useState<UICaseItem[]>(
-    initialMockCases.map((c) => ({
-      id: c.id,
-      name: c.name,
-      caseNumber: c.caseNumber,
-      cnrNumber: `CNR/2026/${c.id.toUpperCase()}`,
-      practiceArea: c.practiceArea,
-      client: c.client,
-      opposingParty: 'Opposing Party',
-      court: 'High Court',
-      judge: 'Presiding Judge',
-      status: c.status,
-      documentCount: c.documentCount,
-      filedCount: c.filedCount,
-      reviewCount: c.reviewCount,
-      processingCount: c.processingCount,
-      nextHearing: c.nextHearing,
-    }))
-  );
+  const { user } = useUserProfile();
+  const [caseList, setCaseList] = useState<UICaseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user.isDemo) {
+      setCaseList(
+        initialMockCases.map((c) => ({
+          id: c.id,
+          name: c.name,
+          caseNumber: c.caseNumber,
+          cnrNumber: `CNR/2026/${c.id.toUpperCase()}`,
+          practiceArea: c.practiceArea,
+          client: c.client,
+          opposingParty: 'Opposing Party',
+          court: 'High Court',
+          judge: 'Presiding Judge',
+          status: c.status,
+          documentCount: c.documentCount,
+          filedCount: c.filedCount,
+          reviewCount: c.reviewCount,
+          processingCount: c.processingCount,
+          nextHearing: c.nextHearing,
+        }))
+      );
+      setLoading(false);
+    } else if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      setLoading(true);
+
+      fetch(`${baseUrl}/api/v1/cases`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.data?.cases) {
+            setCaseList(
+              data.data.cases.map((c: any) => ({
+                id: c.id,
+                name: c.title,
+                caseNumber: c.caseNumber || 'N/A',
+                cnrNumber: c.cnrNumber || 'N/A',
+                practiceArea: c.caseType || 'General Legal',
+                client: c.clientName || 'Unspecified Client',
+                opposingParty: c.opposingParty || 'N/A',
+                court: c.court || 'Court',
+                judge: c.judge || 'Bench',
+                status: c.status?.toLowerCase() || 'active',
+                documentCount: c._count?.documents || 0,
+                filedCount: 0,
+                reviewCount: 0,
+                processingCount: 0,
+              }))
+            );
+          } else {
+            setCaseList([]);
+          }
+        })
+        .catch((err) => console.warn('Error fetching real cases:', err))
+        .finally(() => setLoading(false));
+    }
+  }, [user.isDemo]);
 
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const handleCreateCase = (data: CreateCaseFormData) => {
+  const handleCreateCase = async (data: CreateCaseFormData) => {
+    if (!user.isDemo && typeof window !== 'undefined') {
+      try {
+        const token = localStorage.getItem('token');
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const res = await fetch(`${baseUrl}/api/v1/cases`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+        const created = await res.json();
+        if (res.ok && created.data?.case) {
+          const c = created.data.case;
+          const newCaseItem: UICaseItem = {
+            id: c.id,
+            name: c.title,
+            caseNumber: c.caseNumber || 'N/A',
+            cnrNumber: c.cnrNumber || 'N/A',
+            practiceArea: c.caseType || 'General Legal',
+            client: c.clientName || 'Unspecified Client',
+            opposingParty: c.opposingParty || 'Unspecified',
+            court: c.court || 'Court / Tribunal',
+            judge: c.judge || 'Hon. Bench',
+            status: c.status?.toLowerCase() || 'active',
+            documentCount: 0,
+            filedCount: 0,
+            reviewCount: 0,
+            processingCount: 0,
+          };
+          setCaseList((prev) => [newCaseItem, ...prev]);
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to create case on backend:', err);
+      }
+    }
+
     const newCaseItem: UICaseItem = {
       id: `case-${Date.now()}`,
       name: data.title,

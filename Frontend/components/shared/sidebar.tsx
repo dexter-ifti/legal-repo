@@ -14,7 +14,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Logo } from '@/components/shared/logo';
-import { currentUser } from '@/lib/mock-data';
+import { useUserProfile } from '@/lib/use-user';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -27,6 +27,7 @@ const navItems = [
 
 export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
+  const { user } = useUserProfile();
 
   return (
     <div className="flex h-full flex-col bg-card">
@@ -113,14 +114,14 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
           className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-secondary"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-sm font-semibold text-white">
-            {currentUser.initials}
+            {user.initials}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-foreground">
-              {currentUser.name}
+              {user.name}
             </p>
             <p className="truncate text-xs text-muted-foreground">
-              {currentUser.role}
+              {user.role}
             </p>
           </div>
         </Link>
