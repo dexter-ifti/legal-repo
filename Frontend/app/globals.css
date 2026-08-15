@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 22% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 22% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 22% 11%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 222 22% 11%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 20% 96%;
+    --accent-foreground: 222 22% 11%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 222 47% 11%;
+    --radius: 0.5rem;
+
+    --brand: 199 89% 30%;
+    --brand-foreground: 0 0% 100%;
+    --brand-accent: 199 85% 38%;
+    --brand-soft: 202 80% 94%;
+
+    --success: 142 71% 38%;
+    --success-foreground: 0 0% 100%;
+    --success-soft: 138 60% 94%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 28 80% 16%;
+    --warning-soft: 44 90% 94%;
+
+    --error: 0 72% 51%;
+    --error-foreground: 0 0% 100%;
+    --error-soft: 0 80% 95%;
+
+    --neutral: 215 16% 47%;
+    --neutral-soft: 210 20% 96%;
+
+    --chart-1: 199 89% 30%;
+    --chart-2: 142 71% 38%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 215 28% 35%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+  ::selection {
+    @apply bg-brand-soft;
+  }
+}
+
+@layer utilities {
+  .bg-brand {
+    background-color: hsl(var(--brand));
+  }
+  .text-brand {
+    color: hsl(var(--brand));
+  }
+  .border-brand {
+    border-color: hsl(var(--brand));
+  }
+  .bg-brand-soft {
+    background-color: hsl(var(--brand-soft));
+  }
+  .bg-success {
+    background-color: hsl(var(--success));
+  }
+  .text-success {
+    color: hsl(var(--success));
+  }
+  .bg-success-soft {
+    background-color: hsl(var(--success-soft));
+  }
+  .bg-warning {
+    background-color: hsl(var(--warning));
+  }
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+  .bg-warning-soft {
+    background-color: hsl(var(--warning-soft));
+  }
+  .bg-error {
+    background-color: hsl(var(--error));
+  }
+  .text-error {
+    color: hsl(var(--error));
+  }
+  .bg-error-soft {
+    background-color: hsl(var(--error-soft));
+  }
+  .bg-neutral-soft {
+    background-color: hsl(var(--neutral-soft));
+  }
+  .text-neutral-status {
+    color: hsl(var(--neutral));
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 1; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out;
+}
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}

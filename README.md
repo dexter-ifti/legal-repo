@@ -1,0 +1,114 @@
+# Legal Document Automation Platform
+
+A specialized legal document ingestion and automatic case-matching platform designed for advocates, lawyers, clerks, chambers, and small law firms.
+
+---
+
+## 🎯 Core Product Hypothesis & Wedge
+
+> **Primary Hypothesis:** A user can upload a legal document without selecting a case first, and the system can reliably identify the correct case, ask for human confirmation when uncertain, and file the document safely.
+
+### The Golden Path
+
+```
+Create Case / Ingest Case
+       │
+       ▼
+Upload PDF Document (Upload First UX)
+       │
+       ▼
+Secure Private Storage & SHA-256 Hashing
+       │
+       ▼
+Text Extraction / OCR Fallback
+       │
+       ▼
+Metadata & Case Identifier Extraction
+       │
+       ▼
+Candidate Generation & Deterministic/AI Case Matching
+       │
+       ▼
+Auto-Filing OR User Confirmation Flow
+       │
+       ▼
+Indexing, Search & Document Retrieval
+```
+
+---
+
+## 📁 Repository Structure
+
+```
+.
+├── Frontend/             # Next.js web application interface
+├── docs/                 # Product Requirement Documents (PRD) & UI specs
+├── AGENTS.md             # Core engineering rules, security rules & AI boundaries
+├── BUILD-LOG.md          # Chronological engineering log
+├── CURRENT-STATE.md      # Current product and technical status
+├── TODO.md               # Backlog and milestone execution plan
+├── .env.example          # Baseline environment variable configuration
+└── README.md             # Project overview and setup guide
+```
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js**: v18.x or later
+- **npm**: v9.x or later
+- **Git**
+
+### Installation & Local Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd 36-legal-saas
+   ```
+
+2. **Configure Environment Variables:**
+   Copy the environment templates to set up local environment variables:
+   ```bash
+   cp .env.example .env
+   cp Frontend/.env.example Frontend/.env.local
+   ```
+
+3. **Install Dependencies:**
+   ```bash
+   cd Frontend
+   npm install
+   ```
+
+4. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+5. **Typecheck & Linting:**
+   ```bash
+   npm run typecheck
+   npm run lint
+   ```
+
+---
+
+## 📋 Engineering Governance & Guidelines
+
+All development on this codebase follows strict engineering, security, and scope-control guidelines detailed in [`AGENTS.md`](./AGENTS.md).
+
+### Core Rules:
+1. **Precision before Automation**: A wrong automatic filing is worse than asking one extra question.
+2. **Original Documents are Sacred**: Never overwrite or mutate the original uploaded file.
+3. **Tenant Isolation**: Every resource is organization-scoped.
+4. **Deterministic before LLM**: Use exact identifiers and rules before falling back to AI models.
+5. **No Scope Creep**: Keep changes focused on the MVP execution backlog in [`TODO.md`](./TODO.md).
+
+---
+
+## 📜 License
+
+Private & Proprietary. All rights reserved.
