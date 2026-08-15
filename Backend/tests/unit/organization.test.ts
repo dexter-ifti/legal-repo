@@ -3,18 +3,26 @@ import assert from 'node:assert';
 import { requireTenant, TenantRequest } from '../../src/middleware/tenant.middleware.js';
 import { Response } from 'express';
 
+interface MockResponsePayload {
+  success?: boolean;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+}
+
 test('Tenant Middleware Unit Tests', async (t) => {
   await t.test('requireTenant rejects unauthenticated request with 401', () => {
     const req = {} as TenantRequest;
     let statusCode = 0;
-    let responseBody: Record<string, unknown> | null = null;
+    let responseBody: MockResponsePayload = {};
 
     const res = {
       status(code: number) {
         statusCode = code;
         return this;
       },
-      json(body: Record<string, unknown>) {
+      json(body: MockResponsePayload) {
         responseBody = body;
         return this;
       },
@@ -27,7 +35,7 @@ test('Tenant Middleware Unit Tests', async (t) => {
 
     requireTenant(req, res, next);
     assert.strictEqual(statusCode, 401);
-    assert.strictEqual(responseBody?.success, false);
+    assert.strictEqual(responseBody.success, false);
     assert.strictEqual(nextCalled, false);
   });
 
@@ -39,14 +47,14 @@ test('Tenant Middleware Unit Tests', async (t) => {
       },
     } as TenantRequest;
     let statusCode = 0;
-    let responseBody: { error?: { code?: string } } | null = null;
+    let responseBody: MockResponsePayload = {};
 
     const res = {
       status(code: number) {
         statusCode = code;
         return this;
       },
-      json(body: { error?: { code?: string } }) {
+      json(body: MockResponsePayload) {
         responseBody = body;
         return this;
       },
@@ -59,7 +67,7 @@ test('Tenant Middleware Unit Tests', async (t) => {
 
     requireTenant(req, res, next);
     assert.strictEqual(statusCode, 403);
-    assert.strictEqual(responseBody?.error?.code, 'TENANT_REQUIRED');
+    assert.strictEqual(responseBody.error?.code, 'TENANT_REQUIRED');
     assert.strictEqual(nextCalled, false);
   });
 

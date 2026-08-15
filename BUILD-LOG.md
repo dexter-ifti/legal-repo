@@ -228,7 +228,38 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Decoupling Auth provider implementation behind TypeScript interfaces enables seamless switching from Supabase Auth to Auth0 or custom JWT solutions without refactoring backend HTTP APIs.
 
 ### Next
-- TASK-007 — Authorization foundation.
+- TASK-008 — Case database model (Milestone 2 — Cases).
+
+---
+
+## 2026-08-15 — TASK-007 Authorization Foundation Established (Milestone 1 Complete)
+
+### Built
+- Implemented server-side authorization utilities (`Backend/src/utils/authorization.ts`):
+  - `assertTenantOwnership`: Throws custom `TenantAccessDeniedError` (HTTP 404 / 403) on tenant mismatch.
+  - `buildTenantWhereClause`: Injects `{ organizationId: requestOrgId }` into Prisma database query filters.
+  - `hasRolePermission`: Evaluates role inclusion.
+- Implemented `authorizeResourceOwnership` middleware (`Backend/src/middleware/authz.middleware.ts`) for evaluating nested resource organization ownership before route controller execution.
+- Created unit tests (`Backend/tests/unit/authorization.test.ts`) for assertion helpers and clause builder.
+- Created integration tests (`Backend/tests/integration/authorization.test.ts`) verifying nested resource authorization rejection across multi-tenant boundaries.
+
+### Decisions
+- Standardized cross-tenant access denial on existing resources to return `HTTP 404 Not Found` (rather than leaking resource existence with 403) unless organization identity is missing.
+- Mandatory use of `buildTenantWhereClause` for all database resource queries.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` across workspace executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 50 passing tests (47 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Encapsulating tenant query logic into `buildTenantWhereClause` eliminates the risk of developer oversight omitting `organizationId` in complex Prisma queries.
+
+### Next
+- TASK-008 — Case database model (Milestone 2 — Cases).
 
 ---
 

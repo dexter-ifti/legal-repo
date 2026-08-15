@@ -141,6 +141,16 @@ The Express backend provides a vendor-flexible authentication interface (`IAuthP
 
 ---
 
+## 🛡️ Server-Side Authorization & Tenant Isolation Utilities
+
+The platform enforces zero-trust tenant boundary protection using server-side authorization helpers (`Backend/src/utils/authorization.ts`):
+
+- **`buildTenantWhereClause(requestOrgId, filter)`**: Automatically injects `{ organizationId: requestOrgId }` into Prisma database queries to guarantee tenant-scoping at the ORM layer.
+- **`assertTenantOwnership(resourceOrgId, requestOrgId)`**: Asserts resource ownership matching; mismatches throw standard `TenantAccessDeniedError` (HTTP 404 / HTTP 403).
+- **`authorizeResourceOwnership(fetchFn)`**: Express middleware (`Backend/src/middleware/authz.middleware.ts`) evaluating nested resource organization ownership prior to route controller execution.
+
+---
+
 ## 📋 Engineering Governance & Guidelines
 
 All development on this codebase follows strict engineering, security, and scope-control guidelines detailed in [`AGENTS.md`](./AGENTS.md).

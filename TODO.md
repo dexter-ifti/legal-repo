@@ -110,7 +110,7 @@ Acceptance:
 
 ## TASK-007 — Authorization foundation
 
-Status: READY
+Status: DONE
 
 Goal:
 Create server-side resource authorization utilities.
@@ -126,7 +126,7 @@ Acceptance:
 
 ## TASK-008 — Case database model
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Implement case schema and migration.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-007 — Authorization foundation.**
+**TASK-008 — Case database model.**

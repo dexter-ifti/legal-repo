@@ -4,9 +4,9 @@
 
 ## Project status
 
-Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected, Authentication live, and Organization tenant-isolation model active (TASK-001 through TASK-006 complete).
+Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected, Authentication live, Organization tenant isolation active, and Authorization utilities live (TASK-001 through TASK-007 complete — **Milestone 1 Complete!**).
 
-Express backend equipped with tenant-isolation middleware (`requireTenant`), Organization domain management service (`Backend/src/services/organization.service.ts`), organization endpoints (`POST /organizations`, `GET /organizations/me`, `PATCH /organizations/me`, `GET /organizations/me/members`), and unit/integration test suites verifying multi-tenant boundary isolation. Next step is TASK-007 (Authorization foundation).
+Express backend equipped with server-side authorization utilities (`Backend/src/utils/authorization.ts`), tenant database query clause builder (`buildTenantWhereClause`), nested resource ownership authorization middleware (`authorizeResourceOwnership`), and unit/integration test suites. Next step is Milestone 2: TASK-008 (Case database model).
 
 ---
 
