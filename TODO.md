@@ -147,7 +147,7 @@ Fields:
 
 ## TASK-009 — Case CRUD API
 
-Status: READY
+Status: DONE
 
 Goal:
 Create/read/update cases.
@@ -162,7 +162,7 @@ Acceptance:
 
 ## TASK-010 — Case UI
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Build case list/create/detail UI.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-009 — Case CRUD API.**
+**TASK-010 — Case UI.**

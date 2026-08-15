@@ -138,6 +138,11 @@ The Express backend provides a vendor-flexible authentication interface (`IAuthP
 | `/api/v1/organizations/me` | `GET` | Yes + Tenant | Retrieve current user's organization profile & member count |
 | `/api/v1/organizations/me` | `PATCH` | Yes + Admin | Update firm details (restricted to ADMIN role) |
 | `/api/v1/organizations/me/members` | `GET` | Yes + Tenant | List members strictly scoped to the caller's organization |
+| `/api/v1/cases` | `POST` | Yes + Tenant | Create a new legal case (Zod validated) |
+| `/api/v1/cases` | `GET` | Yes + Tenant | List & search organization cases with pagination (`?search=...`) |
+| `/api/v1/cases/:id` | `GET` | Yes + Tenant | Retrieve single case details (protected by resource ownership) |
+| `/api/v1/cases/:id` | `PATCH` | Yes + Tenant | Update case metadata (protected by resource ownership) |
+| `/api/v1/cases/:id` | `DELETE` | Yes + Tenant + Admin | Delete case record (restricted to ADMIN role) |
 
 ---
 

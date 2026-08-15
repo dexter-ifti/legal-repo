@@ -228,7 +228,41 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Decoupling Auth provider implementation behind TypeScript interfaces enables seamless switching from Supabase Auth to Auth0 or custom JWT solutions without refactoring backend HTTP APIs.
 
 ### Next
-- TASK-009 — Case CRUD API.
+- TASK-010 — Case UI.
+
+---
+
+## 2026-08-15 — TASK-009 Case CRUD API Established
+
+### Built
+- Implemented `case.service.ts` providing `createCase`, `getCases` (with search and pagination), `getCaseById`, `updateCase`, and `deleteCase` using `buildTenantWhereClause`.
+- Implemented `case.routes.ts` defining Express REST endpoints:
+  - `POST /api/v1/cases`: Validates payload with Zod `createCaseSchema`.
+  - `GET /api/v1/cases`: Paginated listing with search keyword filter across `title`, `caseNumber`, `cnrNumber`, `clientName`, and `court`.
+  - `GET /api/v1/cases/:id`: Detailed case retrieval protected by `authorizeResourceOwnership`.
+  - `PATCH /api/v1/cases/:id`: Metadata updates with Zod `updateCaseSchema` protected by `authorizeResourceOwnership`.
+  - `DELETE /api/v1/cases/:id`: Case deletion restricted to `ADMIN` role protected by `authorizeResourceOwnership`.
+- Registered `/api/v1/cases` router in `Backend/src/app.ts`.
+- Created Zod validation schema unit tests (`Backend/tests/unit/case.test.ts`).
+- Created HTTP integration tests (`Backend/tests/integration/case.test.ts`) covering CRUD lifecycle, query search filters, and strict multi-tenant access prevention.
+
+### Decisions
+- Applied search across multiple columns (`title`, `caseNumber`, `cnrNumber`, `clientName`, `court`) using case-insensitive `contains` mode.
+- Ensured deleting a case requires `ADMIN` role to prevent accidental data loss by standard advocates or clerks.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` across workspace executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 71 passing tests (68 Backend, 3 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Combining `requireTenant`, `authorizeResourceOwnership`, and `buildTenantWhereClause` guarantees defense-in-depth against cross-tenant data leaks.
+
+### Next
+- TASK-010 — Case UI.
 
 ---
 

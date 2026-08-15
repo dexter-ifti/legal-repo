@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestone 1 Complete. Milestone 2 (Cases) in progress: Case database model defined, default status values configured, and Prisma Client synced (TASK-001 through TASK-008 complete).
+Milestone 1 Complete. Milestone 2 (Cases) backend implementation live: `Case` database model and full tenant-isolated Case CRUD API endpoints live (`POST /api/v1/cases`, `GET /api/v1/cases`, `GET /api/v1/cases/:id`, `PATCH /api/v1/cases/:id`, `DELETE /api/v1/cases/:id`).
 
-`Case` PostgreSQL model refined in `Backend/prisma/schema.prisma` with explicit `status String @default("ACTIVE")`, multi-tenant organization scoping, compound index lookup optimization (`[organizationId, caseNumber]` and `[organizationId, cnrNumber]`), and unit test suite (`Backend/tests/unit/case-model.test.ts`). Next step is TASK-009 (Case CRUD API).
+Express backend equipped with `case.service.ts`, `case.routes.ts` (with Zod schemas, search/pagination, and `authorizeResourceOwnership` middleware), and comprehensive unit/integration test coverage (TASK-001 through TASK-009 complete). Next step is TASK-010 (Case UI).
 
 ---
 
