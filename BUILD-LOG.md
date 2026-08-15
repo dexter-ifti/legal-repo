@@ -105,7 +105,38 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Workspace dependencies must be explicitly installed before running typechecks.
 
 ### Next
-- TASK-002 — Establish frontend/backend foundation.
+- TASK-003 — Add test infrastructure.
+
+---
+
+## 2026-08-15 — TASK-002 Express Backend Foundation Established
+
+### Built
+- Created dedicated Express + TypeScript service in `Backend/`.
+- Configured `Backend/package.json`, `Backend/tsconfig.json`, `Backend/.eslintrc.json`, and `Backend/.env.example`.
+- Implemented API TypeScript contracts (`src/types/api.ts`) and JSON response builders (`src/utils/api-response.ts`).
+- Created `/health` and `/api/v1/health` HTTP route handlers in Express (`src/routes/health.routes.ts`, `src/app.ts`, `src/server.ts`).
+- Implemented backend unit test suite (`tests/health.test.ts`) utilizing `tsx` and Node test runner (`npm test`).
+
+### Decisions
+- Standardized API payload contracts (`success`, `data`, `error`, `timestamp`, `meta`) across all server endpoints.
+- Added Express CORS, Helmet security headers, JSON body parsing, and 404/500 middleware.
+
+### Problems
+- None. `npm run typecheck`, `npm run lint`, `npm test`, and `npm run build` executed with 0 errors.
+
+### Tests / metrics
+- `Backend` `npm test`: 3 passing tests.
+- `Backend` `npm run typecheck`: 0 errors.
+- `Backend` `npm run lint`: 0 errors.
+- `Backend` `npm run build`: Success.
+- `Frontend` `npm run typecheck`: 0 errors.
+
+### Learning
+- Structuring `Backend/` as a standalone TypeScript project allows independent testing and deployment from `Frontend/`.
+
+### Next
+- TASK-003 — Add test infrastructure.
 
 ---
 

@@ -41,6 +41,7 @@ Indexing, Search & Document Retrieval
 
 ```
 .
+├── Backend/              # Dedicated Express + TypeScript API backend service
 ├── Frontend/             # Next.js web application interface
 ├── docs/                 # Product Requirement Documents (PRD) & UI specs
 ├── AGENTS.md             # Core engineering rules, security rules & AI boundaries
@@ -70,26 +71,31 @@ Indexing, Search & Document Retrieval
    ```
 
 2. **Configure Environment Variables:**
-   Copy the environment templates to set up local environment variables:
+   Copy the environment templates:
    ```bash
    cp .env.example .env
+   cp Backend/.env.example Backend/.env
    cp Frontend/.env.example Frontend/.env.local
    ```
 
-3. **Install Dependencies:**
+3. **Backend Service Setup:**
+   ```bash
+   cd Backend
+   npm install
+   npm run dev       # Starts Express backend on http://localhost:5000
+   npm test          # Runs backend health unit tests
+   ```
+
+4. **Frontend Service Setup:**
    ```bash
    cd Frontend
    npm install
+   npm run dev       # Starts Next.js app on http://localhost:3000
    ```
-
-4. **Run the Development Server:**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 5. **Typecheck & Linting:**
    ```bash
+   # Run in Frontend/ or Backend/
    npm run typecheck
    npm run lint
    ```

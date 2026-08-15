@@ -34,7 +34,7 @@ Out of scope:
 
 ## TASK-002 — Establish frontend/backend foundation
 
-Status: READY
+Status: DONE
 
 Goal:
 Create the basic application structure with TypeScript.
@@ -50,7 +50,7 @@ Acceptance:
 
 ## TASK-003 — Add test infrastructure
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create unit and integration test foundations.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-002 — Establish frontend/backend foundation.**
+**TASK-003 — Add test infrastructure.**

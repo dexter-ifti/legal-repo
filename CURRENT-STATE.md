@@ -4,9 +4,9 @@
 
 ## Project status
 
-Repository initialized (TASK-001 complete). Foundation setup in progress.
+Frontend and Backend foundation established (TASK-001 & TASK-002 complete).
 
-Git workspace initialized, root README, `.gitignore`, and environment variable templates created. Frontend typecheck and linting verified. Next step is TASK-002 (frontend/backend foundation).
+Dedicated Express + TypeScript API server in `Backend/` created with `/health` and `/api/v1/health` routes, standard JSON response handlers, and unit test suite. Next step is TASK-003 (test infrastructure expansion).
 
 ---
 
