@@ -216,4 +216,200 @@ router.post(
   }
 );
 
+/**
+ * POST /api/v1/documents/:id/match
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Triggers candidate generation & deterministic case matching.
+ */
+router.post(
+  '/:id/match',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+
+      const { defaultCaseMatcherService } = await import('../services/matching/case-matcher.service.js');
+      const result = await defaultCaseMatcherService.matchDocument(organizationId, documentId);
+
+      sendSuccess(res, result, 200);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to execute case matching';
+      sendError(res, message, 500, 'MATCHING_ERROR');
+    }
+  }
+);
+
+/**
+ * POST /api/v1/documents/:id/confirm-match
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Confirms case association for a document, updating status to CONFIRMED and FILED.
+ */
+router.post(
+  '/:id/confirm-match',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+      const { caseId } = req.body || {};
+
+      if (!caseId) {
+        sendError(res, 'caseId is required for match confirmation', 400, 'VALIDATION_ERROR', [
+          { field: 'caseId', message: 'caseId is required' },
+        ]);
+        return;
+      }
+
+      // Verify case exists in user's tenant organization
+      const targetCase = await prisma.case.findFirst({
+        where: { id: caseId, organizationId },
+      });
+
+      if (!targetCase) {
+        sendError(res, 'Target case not found in organization', 404, 'CASE_NOT_FOUND');
+        return;
+      }
+
+      const existingDoc = await prisma.document.findUnique({
+        where: { id: documentId },
+      });
+
+      const caseNumSanitized = (targetCase.caseNumber || 'CASE').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const docTypeSanitized = (existingDoc?.documentType || 'DOC').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const systemFilename = `${caseNumSanitized}_${docTypeSanitized}_${existingDoc?.originalFilename || 'document.pdf'}`;
+
+      const updatedDoc = await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          caseId: targetCase.id,
+          matchStatus: 'CONFIRMED',
+          processingStatus: 'FILED',
+          systemFilename,
+        },
+        include: { case: true, metadata: true },
+      });
+
+      await prisma.auditEvent.create({
+        data: {
+          organizationId,
+          userId: req.user!.id,
+          entityType: 'Document',
+          entityId: documentId,
+          eventType: 'DOCUMENT_CONFIRMED',
+          metadata: {
+            confirmedCaseId: targetCase.id,
+            caseNumber: targetCase.caseNumber,
+            systemFilename,
+          },
+        },
+      });
+
+      sendSuccess(res, updatedDoc, 200);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to confirm case match';
+      sendError(res, message, 500, 'MATCH_CONFIRM_ERROR');
+    }
+  }
+);
+
+/**
+ * POST /api/v1/documents/:id/reassign
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Reassigns document to a different case or detaches it, logging structured feedback.
+ */
+router.post(
+  '/:id/reassign',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+      const { newCaseId, reason } = req.body || {};
+
+      let targetCase = null;
+      if (newCaseId) {
+        targetCase = await prisma.case.findFirst({
+          where: { id: newCaseId, organizationId },
+        });
+
+        if (!targetCase) {
+          sendError(res, 'Target case not found in organization', 404, 'CASE_NOT_FOUND');
+          return;
+        }
+      }
+
+      const existingDoc = await prisma.document.findUnique({
+        where: { id: documentId },
+      });
+
+      const oldCaseId = existingDoc?.caseId || null;
+
+      const updatedDoc = await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          caseId: targetCase ? targetCase.id : null,
+          matchStatus: 'REASSIGNED',
+          processingStatus: targetCase ? 'FILED' : 'MATCHING',
+        },
+        include: { case: true, metadata: true },
+      });
+
+      // Capture structured prediction correction feedback
+      await prisma.documentMetadata.create({
+        data: {
+          documentId,
+          fieldName: 'matching_reassignment_feedback',
+          fieldValue: JSON.stringify({
+            oldCaseId,
+            newCaseId: targetCase?.id || null,
+            reason: reason || 'User manual reassignment',
+            reassignedAt: new Date().toISOString(),
+          }),
+          confidence: 1.0,
+          source: 'USER_FEEDBACK',
+        },
+      });
+
+      await prisma.auditEvent.create({
+        data: {
+          organizationId,
+          userId: req.user!.id,
+          entityType: 'Document',
+          entityId: documentId,
+          eventType: 'DOCUMENT_REASSIGNED',
+          metadata: {
+            oldCaseId,
+            newCaseId: targetCase?.id || null,
+            reason,
+          },
+        },
+      });
+
+      sendSuccess(res, updatedDoc, 200);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to reassign document case';
+      sendError(res, message, 500, 'REASSIGN_ERROR');
+    }
+  }
+);
+
 export default router;

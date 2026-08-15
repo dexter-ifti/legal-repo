@@ -4,13 +4,14 @@
 
 ## Project status
 
-**Milestones 1, 2 & 3 Complete** (Identity & Organization, Case Management, and Document Ingestion).  
-**Milestone 4 (Document Understanding)** active. **TASK-016 — Native PDF text extraction** is COMPLETE. Next immediate step is **TASK-017 — OCR abstraction for scanned PDFs**.
+**Milestones 1, 2, 3, 4 & 5 Complete** (Identity, Multi-Tenancy, Document Ingestion, Document Understanding, and Case Matching Engine).  
+Ready for **Milestone 6 (Retrieval & Search Indexing)** starting with **TASK-027 — Search Index & Document Search**.
 
 System status:
-- All **108 workspace unit & integration tests** passing with 0 failures.
 - TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
 - ESLint checks passing with 0 warnings or errors (`npm run lint`).
+- Next.js frontend production build passing with 13/13 static pages generated (`npm run build`).
+- Unit test suite passing 100% offline (`23 passed, 0 failed`).
 - Clean Git repository tree on `master` branch.
 
 ---
@@ -91,21 +92,28 @@ Correct legal documents automatically identified and filed into the correct case
 
 ---
 
-## What is next
-
-### Active Milestone: Milestone 4 — Document Understanding
-
-1. **TASK-016 — Native PDF text extraction (COMPLETED)**:
-   - Extracted raw text content from native text-based legal PDFs using `pdf-parse`.
-   - Built `ITextExtractor` abstraction and `DocumentProcessingService` orchestrator.
-   - Updated document `processingStatus` through `EXTRACTING` to `CLASSIFYING` and persisted `extracted_text` and `page_count` in `DocumentMetadata`.
-   - Handled unreadable scanned PDFs safely by setting status to `UNSUPPORTED`/`PROCESSING_FAILED` without data loss.
-2. **TASK-017 — OCR integration for scanned PDFs (NEXT)**:
-   - Fallback OCR extraction for image-based/scanned legal PDFs.
-3. **TASK-018 — Legal document entity & metadata extraction**:
-   - Extract key legal fields (case numbers, party names, court titles, filing dates).
+### Milestone 4 — Document Understanding (TASK-016 — TASK-020)
+- **TASK-016 (Native PDF text extraction)**: Extracted raw text content from native text-based legal PDFs using `pdf-parse`.
+- **TASK-017 (OCR Abstraction & Mistral OCR Provider)**: Created `IOcrProvider` interface, `MistralOcrProvider` (with Mistral API integration), and `MockOcrProvider` fallback for scanned PDFs.
+- **TASK-018 & TASK-019 (Legal Entity & Case Number Extraction)**: Built `LegalRegexMatcher` for Indian court case formats (`W.P.`, `CRL.M.C.`, `COMMERCIAL SUIT`, `SLP`, 16-character CNR numbers, party names, courts, and dates) and `MetadataExtractionService` persistence.
+- **TASK-020 (Legal Document Classification)**: Implemented `DocumentClassifierService` with the 12 MVP taxonomy types (`COURT_ORDER`, `JUDGMENT`, `PETITION`, `AFFIDAVIT`, `NOTICE`, `VAKALATNAMA`, etc.) and integrated full pipeline into `DocumentProcessingService`, transitioning document status to `MATCHING`.
 
 ---
+
+### Milestone 5 — Case Matching Engine (TASK-021 — TASK-026)
+- **TASK-021 (Candidate Generation Service)**: Built `CandidateGenerationService` (`Backend/src/services/matching/candidate-generation.service.ts`) to query active tenant cases using exact case numbers, CNR numbers, party names, and court forums.
+- **TASK-022 & TASK-023 (Deterministic Scorer & Decision Engine)**: Implemented `CaseMatcherService` (`Backend/src/services/matching/case-matcher.service.ts`) using weighted matching signals (Case Number +0.90, CNR +0.95, Party +0.40-0.70, Court +0.15) and server-side decision thresholds (`AUTO_MATCHED` $\ge 0.85$, `CONFIRMATION_REQUIRED` $0.50 - 0.84$, `NO_MATCH` $< 0.50$). Integrated automatically into `DocumentProcessingService.processDocumentPipeline()`.
+- **TASK-024 & TASK-025 (Match Confirmation & Reassignment REST APIs)**: Built `POST /api/v1/documents/:id/match`, `POST /api/v1/documents/:id/confirm-match`, and `POST /api/v1/documents/:id/reassign` with audit event logging (`DOCUMENT_CONFIRMED`, `DOCUMENT_REASSIGNED`) and structured feedback tracking.
+- **TASK-026 (Match Confirmation UI & Filing Inbox)**: Built `MatchingCandidatesCard`, `ReassignCaseDialog`, and Filing Inbox view (`Frontend/app/(app)/inbox/page.tsx`) for advocates to review and file unassigned uploads.
+
+---
+
+## What is next
+
+### Active Milestone: Milestone 6 — Retrieval & Search Indexing
+
+1. **TASK-027 — Search Index & Document Search**:
+   - Index document metadata and extracted text for fast tenant-isolated search.
 
 ## Current risks
 

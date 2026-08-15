@@ -274,7 +274,7 @@ Acceptance:
 
 ## TASK-017 — OCR abstraction
 
-Status: READY
+Status: DONE
 
 Goal:
 Add OCR fallback for scanned PDFs.
@@ -289,7 +289,7 @@ Acceptance:
 
 ## TASK-018 — Metadata schema
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Store extracted metadata with confidence and source.
@@ -308,7 +308,7 @@ Fields include:
 
 ## TASK-019 — Deterministic case-number extraction
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Extract common legal case-number formats using rules/regex.
@@ -323,7 +323,7 @@ Acceptance:
 
 ## TASK-020 — Document classification
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Classify documents into the MVP taxonomy.
@@ -348,7 +348,7 @@ Types:
 
 ## TASK-021 — Candidate generation
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Generate likely case candidates without comparing every document against every case.
@@ -365,7 +365,7 @@ Priority:
 
 ## TASK-022 — Deterministic matcher
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Score case candidates using deterministic signals.
@@ -380,7 +380,7 @@ Acceptance:
 
 ## TASK-023 — Matching decision engine
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Return:
@@ -397,7 +397,7 @@ Acceptance:
 
 ## TASK-024 — Match confirmation API
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Allow user to confirm a candidate case.
@@ -413,7 +413,7 @@ Acceptance:
 
 ## TASK-025 — Reassignment
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Allow users to correct a filing.
@@ -428,7 +428,7 @@ Acceptance:
 
 ## TASK-026 — Match confirmation UI
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Display candidate case, extracted metadata, and reasons/signals.
@@ -445,7 +445,7 @@ Acceptance:
 
 ## TASK-027 — Search index
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Index case/document metadata and extracted text.
@@ -648,4 +648,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-017 — OCR abstraction.**
+**TASK-021 — Candidate generation.**

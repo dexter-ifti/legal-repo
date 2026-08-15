@@ -1,22 +1,40 @@
 import { prisma } from '../db/client.js';
-import { buildTenantWhereClause, assertTenantOwnership } from '../utils/authorization.js';
+import { buildTenantWhereClause, assertTenantOwnership, TenantAccessDeniedError } from '../utils/authorization.js';
 import { getStorageFileBuffer } from '../storage/storage.service.js';
 import { defaultPdfTextExtractor } from './text-extraction/pdf-text-extractor.service.js';
 import { ITextExtractor } from './text-extraction/text-extractor.interface.js';
+import { getOcrProvider } from './ocr/ocr.service.js';
+import { IOcrProvider } from './ocr/ocr-provider.interface.js';
+import { defaultMetadataExtractionService } from './extraction/metadata-extraction.service.js';
+import { defaultDocumentClassifierService } from './classification/document-classifier.service.js';
+import { defaultCaseMatcherService } from './matching/case-matcher.service.js';
 
 export class DocumentProcessingService {
   private extractor: ITextExtractor;
+  private ocrProvider: IOcrProvider;
 
-  constructor(extractor: ITextExtractor = defaultPdfTextExtractor) {
+  constructor(
+    extractor: ITextExtractor = defaultPdfTextExtractor,
+    ocrProvider: IOcrProvider = getOcrProvider()
+  ) {
     this.extractor = extractor;
+    this.ocrProvider = ocrProvider;
   }
 
   /**
-   * Processes native PDF text extraction for a document within tenant boundaries.
+   * Performs native text extraction (TASK-016 compatibility).
    */
   async processTextExtraction(organizationId: string, documentId: string) {
+    return this.processDocumentPipeline(organizationId, documentId);
+  }
+
+  /**
+   * Complete Milestone 4 & 5 Document Pipeline:
+   * Text Extraction -> OCR Fallback -> Legal Metadata -> Classification -> Case Matching Engine.
+   */
+  async processDocumentPipeline(organizationId: string, documentId: string) {
     if (!organizationId || !documentId) {
-      throw new Error('Tenant organizationId and documentId are required for text extraction');
+      throw new Error('Tenant organizationId and documentId are required for document processing pipeline');
     }
 
     // 1. Retrieve document with tenant security scoping
@@ -25,135 +43,177 @@ export class DocumentProcessingService {
     });
 
     if (!document) {
-      throw new Error(`Document not found or unauthorized: ${documentId}`);
+      throw new TenantAccessDeniedError('Document not found or access denied', 404);
     }
     assertTenantOwnership(document.organizationId, organizationId);
 
-    // 2. Update status to EXTRACTING
+    // Update status to EXTRACTING
     await prisma.document.update({
       where: { id: documentId },
       data: { processingStatus: 'EXTRACTING' },
     });
 
     try {
-      // 3. Read file binary buffer from private object storage
+      // 2. Read binary file from Object Storage
       const fileBuffer = await getStorageFileBuffer(document.storageKey);
 
-      // 4. Perform text extraction
-      const extractionResult = await this.extractor.extractText(fileBuffer);
+      // 3. Attempt native PDF text extraction
+      let extractedText = '';
+      let pageCount = 1;
+      let isScanned = false;
+      let extractionSource = 'DOCUMENT_TEXT';
 
-      if (extractionResult.error || (!extractionResult.text && extractionResult.isScanned)) {
-        // Safe failure: mark status as PROCESSING_FAILED or UNSUPPORTED without throwing or losing file
-        const failedStatus = extractionResult.isScanned ? 'UNSUPPORTED' : 'PROCESSING_FAILED';
-        const updatedDoc = await prisma.document.update({
-          where: { id: documentId },
-          data: { processingStatus: failedStatus },
-        });
-
-        // Persist extraction error metadata
-        await prisma.documentMetadata.create({
-          data: {
-            documentId,
-            fieldName: 'extraction_error',
-            fieldValue: extractionResult.error || 'No extractable text stream found in PDF (scanned or empty)',
-            confidence: 0,
-            source: 'native_pdf_extractor',
-          },
-        });
-
-        return {
-          success: false,
-          status: failedStatus,
-          document: updatedDoc,
-          error: extractionResult.error || 'No text extracted',
-        };
+      try {
+        const extractionResult = await this.extractor.extractText(fileBuffer);
+        extractedText = extractionResult.text.trim();
+        pageCount = extractionResult.pageCount || 1;
+      } catch (err: unknown) {
+        console.warn(`Native text extraction failed for doc ${documentId}, falling back to OCR:`, err);
       }
 
-      // 5. Persist extracted text and metadata into Prisma DocumentMetadata table
+      // 4. OCR Fallback if native text is empty or insufficient
+      if (!extractedText || extractedText.length < 20) {
+        isScanned = true;
+        extractionSource = 'OCR';
+
+        const ocrResult = await this.ocrProvider.extractText(fileBuffer);
+
+        if (ocrResult.text && !ocrResult.error && ocrResult.text.trim().length > 0) {
+          extractedText = ocrResult.text.trim();
+          pageCount = ocrResult.pageCount || pageCount;
+        } else {
+          // If OCR also yields empty text, mark as OCR_FAILED or UNSUPPORTED
+          const failedStatus = ocrResult.error?.includes('unsupported') ? 'UNSUPPORTED' : 'OCR_FAILED';
+          const updatedDoc = await prisma.document.update({
+            where: { id: documentId },
+            data: { processingStatus: failedStatus },
+          });
+
+          await prisma.documentMetadata.create({
+            data: {
+              documentId,
+              fieldName: 'extraction_error',
+              fieldValue: ocrResult.error || 'Text extraction and OCR fallback yielded empty text',
+              confidence: 0,
+              source: 'ocr_fallback',
+            },
+          });
+
+          return {
+            success: false,
+            status: failedStatus,
+            document: updatedDoc,
+            error: ocrResult.error || 'No extractable text',
+          };
+        }
+      }
+
+      // 5. Persist extracted text metadata
       await prisma.$transaction([
-        // Delete any existing extracted_text metadata for idempotency
         prisma.documentMetadata.deleteMany({
           where: {
             documentId,
             fieldName: { in: ['extracted_text', 'page_count', 'is_scanned'] },
           },
         }),
-        // Create fresh metadata entries
         prisma.documentMetadata.create({
           data: {
             documentId,
             fieldName: 'extracted_text',
-            fieldValue: extractionResult.text,
+            fieldValue: extractedText,
             confidence: 1.0,
-            source: 'native_pdf_extractor',
+            source: extractionSource,
           },
         }),
         prisma.documentMetadata.create({
           data: {
             documentId,
             fieldName: 'page_count',
-            fieldValue: String(extractionResult.pageCount),
+            fieldValue: String(pageCount),
             confidence: 1.0,
-            source: 'native_pdf_extractor',
+            source: extractionSource,
           },
         }),
         prisma.documentMetadata.create({
           data: {
             documentId,
             fieldName: 'is_scanned',
-            fieldValue: String(Boolean(extractionResult.isScanned)),
+            fieldValue: String(isScanned),
             confidence: 1.0,
-            source: 'native_pdf_extractor',
+            source: extractionSource,
           },
-        }),
-        // Update document processing status to CLASSIFYING
-        prisma.document.update({
-          where: { id: documentId },
-          data: { processingStatus: 'CLASSIFYING' },
         }),
       ]);
 
-      const updatedDocument = await prisma.document.findUnique({
+      // 6. Metadata Extraction (TASK-018 & TASK-019)
+      const metadataResult = await defaultMetadataExtractionService.persistExtractedMetadata(
+        documentId,
+        extractedText,
+        extractionSource
+      );
+
+      // 7. Legal Document Classification (TASK-020)
+      const classification = defaultDocumentClassifierService.classify(
+        extractedText,
+        document.originalFilename
+      );
+
+      // 8. Update Document model with classification result & set processingStatus to MATCHING
+      await prisma.document.update({
         where: { id: documentId },
-        include: { metadata: true },
+        data: {
+          documentType: classification.documentType,
+          processingStatus: 'MATCHING',
+        },
       });
 
-      const formattedDocument = updatedDocument
-        ? {
-            ...updatedDocument,
-            fileSize: updatedDocument.fileSize ? Number(updatedDocument.fileSize) : 0,
-          }
-        : null;
+      // Log Audit Event
+      await prisma.auditEvent.create({
+        data: {
+          organizationId: document.organizationId,
+          userId: document.uploadedBy,
+          entityType: 'DOCUMENT',
+          entityId: document.id,
+          eventType: 'DOCUMENT_CLASSIFIED',
+          metadata: {
+            documentType: classification.documentType,
+            confidence: classification.confidence,
+            extractedMetadataCount: metadataResult.allFields.length,
+          },
+        },
+      });
+
+      // 9. Case Matching Engine (TASK-021, TASK-022, TASK-023)
+      const matchingResult = await defaultCaseMatcherService.matchDocument(organizationId, documentId);
+
+      const finalDoc = await prisma.document.findUnique({
+        where: { id: documentId },
+        include: { metadata: true, case: true },
+      });
 
       return {
         success: true,
-        status: 'CLASSIFYING',
-        document: formattedDocument,
-        text: extractionResult.text,
-        pageCount: extractionResult.pageCount,
+        status: finalDoc?.processingStatus,
+        matchStatus: matchingResult.matchStatus,
+        matchConfidence: matchingResult.matchConfidence,
+        document: finalDoc,
+        text: extractedText,
+        metadata: metadataResult.allFields,
+        candidates: matchingResult.candidates,
       };
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Text extraction pipeline error';
+      console.error(`Document pipeline execution failed for ${documentId}:`, err);
 
-      await prisma.document.update({
+      const failedDoc = await prisma.document.update({
         where: { id: documentId },
         data: { processingStatus: 'PROCESSING_FAILED' },
-      }).catch(() => {});
-
-      await prisma.documentMetadata.create({
-        data: {
-          documentId,
-          fieldName: 'extraction_error',
-          fieldValue: errorMessage,
-          confidence: 0,
-          source: 'native_pdf_extractor',
-        },
-      }).catch(() => {});
+      });
 
       return {
         success: false,
         status: 'PROCESSING_FAILED',
-        error: errorMessage,
+        document: failedDoc,
+        error: err instanceof Error ? err.message : 'Processing failure',
       };
     }
   }
