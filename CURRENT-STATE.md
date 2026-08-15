@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) active: Document database schema and model unit test suite established (`Backend/tests/unit/document-model.test.ts`).
+Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) active: PDF Upload REST API live (`POST /api/v1/documents/upload`, `GET /api/v1/documents/:id`).
 
-`Document` model enforces tenant-scoping (`organizationId`), supports unassigned initial uploads (`caseId: null` implementing the Upload First principle), preserves `originalFilename`, records private `storageKey`, stores `sha256` checksums for deduplication, tracks `processingStatus` (`UPLOADED`, `EXTRACTING`, `MATCHING`, `FILED`, `FAILED`) and `matchStatus` (`NOT_STARTED`, `AUTO_MATCHED`, `CONFIRMATION_REQUIRED`, `NO_MATCH`). (TASK-001 through TASK-012 complete). Next step is TASK-013 (PDF upload API).
+PDF Document Upload pipeline operational: Multer memory buffer ingestion, PDF magic byte validation (`%PDF-`), SHA-256 checksum computation, private object storage buffer persistence via `storage.service`, tenant-scoped `Document` database record creation in Prisma (supporting `caseId: null` for Upload First), and cross-tenant security isolation. (TASK-001 through TASK-013 complete). Next step is TASK-014 (Duplicate detection).
 
 ---
 

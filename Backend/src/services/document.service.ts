@@ -1,0 +1,115 @@
+import crypto from 'node:crypto';
+import { prisma } from '../db/client.js';
+import { buildTenantWhereClause, assertTenantOwnership } from '../utils/authorization.js';
+import { uploadStorageObject } from '../storage/storage.service.js';
+
+export interface UploadDocumentOptions {
+  organizationId: string;
+  uploadedBy: string;
+  fileBuffer: Buffer;
+  originalFilename: string;
+  mimeType?: string;
+  caseId?: string | null;
+  documentType?: string | null;
+}
+
+export class DocumentService {
+  /**
+   * Uploads PDF buffer to private storage and creates a Document record in Prisma.
+   */
+  static async uploadDocument(options: UploadDocumentOptions) {
+    const {
+      organizationId,
+      uploadedBy,
+      fileBuffer,
+      originalFilename,
+      mimeType = 'application/pdf',
+      caseId,
+      documentType,
+    } = options;
+
+    if (!organizationId) {
+      throw new Error('Tenant organizationId is required for document upload');
+    }
+
+    // 1. If caseId is provided, verify case belongs to the requesting organization
+    if (caseId) {
+      const legalCase = await prisma.case.findFirst({
+        where: buildTenantWhereClause(organizationId, { id: caseId }),
+      });
+      if (!legalCase) {
+        throw new Error(`Target case not found or unauthorized: ${caseId}`);
+      }
+      assertTenantOwnership(legalCase.organizationId, organizationId);
+    }
+
+    // 2. Compute SHA-256 hex checksum
+    const sha256Hex = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+    // 3. Deduplication Check: Check if document already exists within tenant
+    const existingDoc = await prisma.document.findFirst({
+      where: buildTenantWhereClause(organizationId, { sha256: sha256Hex }),
+    });
+
+    if (existingDoc) {
+      // Return existing document record idempotently
+      return {
+        document: existingDoc,
+        isDuplicate: true,
+      };
+    }
+
+    // 4. Upload binary file to private object storage
+    const storageRef = await uploadStorageObject({
+      organizationId,
+      fileName: originalFilename,
+      mimeType,
+      buffer: fileBuffer,
+      folder: 'documents',
+    });
+
+    // 5. Persist Document record in Prisma database
+    const document = await prisma.document.create({
+      data: {
+        organizationId,
+        caseId: caseId || null,
+        originalFilename,
+        systemFilename: storageRef.fileName,
+        storageKey: storageRef.storageKey,
+        mimeType,
+        fileSize: BigInt(fileBuffer.length),
+        sha256: sha256Hex,
+        documentType: documentType || 'UNCLASSIFIED',
+        processingStatus: 'UPLOADED',
+        matchStatus: 'NOT_STARTED',
+        uploadedBy,
+      },
+    });
+
+    return {
+      document,
+      isDuplicate: false,
+    };
+  }
+
+  /**
+   * Retrieves a document by ID with tenant scoping.
+   */
+  static async getDocumentById(organizationId: string, documentId: string) {
+    const document = await prisma.document.findFirst({
+      where: buildTenantWhereClause(organizationId, { id: documentId }),
+      include: {
+        case: true,
+        uploader: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (document) {
+      assertTenantOwnership(document.organizationId, organizationId);
+    }
+
+    return document;
+  }
+}

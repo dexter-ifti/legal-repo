@@ -437,6 +437,33 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — TASK-013 PDF Upload API Live
+
+### Built
+- Implemented `upload.middleware.ts` configuring Multer memory storage (50MB limit) and PDF magic byte header validation (`%PDF-`).
+- Created `DocumentService` (`Backend/src/services/document.service.ts`) computing SHA-256 hex checksums, conducting tenant-scoped deduplication lookups, persisting binary buffers to private object storage via `storage.service`, and creating `Document` database records.
+- Built Express route handlers `POST /api/v1/documents/upload` and `GET /api/v1/documents/:id` protected by `authenticateToken`, `requireTenant`, and `authorizeResourceOwnership`.
+- Added comprehensive integration test suite (`Backend/tests/integration/document-upload.test.ts`) covering unassigned uploads ("Upload First"), case assignment uploads, non-PDF file rejection, SHA-256 deduplication idempotency, and cross-tenant boundary isolation.
+
+### Decisions
+- In-memory upload buffer parsing allows instant SHA-256 calculation and magic byte validation before writing any data to private storage, preventing storage pollution from invalid/malicious files.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` executed with 0 errors or warnings across workspace.
+
+### Tests / metrics
+- Workspace Root `npm test`: 96 passing tests (91 Backend, 5 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Supertest binary file upload requires proper `.attach('file', buffer, filename)` formatting alongside form fields.
+
+### Next
+- TASK-014 — Duplicate detection.
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title

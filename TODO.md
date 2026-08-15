@@ -209,11 +209,9 @@ Acceptance:
 - SHA-256 stored
 - processing state stored
 
----
-
 ## TASK-013 — PDF upload API
 
-Status: READY
+Status: DONE
 
 Goal:
 Upload a PDF and persist it safely.
@@ -230,7 +228,7 @@ Acceptance:
 
 ## TASK-014 — Duplicate detection
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Detect exact duplicate files using organization + SHA-256.
@@ -650,4 +648,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-013 — PDF upload API.**
+**TASK-014 — Duplicate detection.**
