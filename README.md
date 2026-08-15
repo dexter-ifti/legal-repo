@@ -134,6 +134,10 @@ The Express backend provides a vendor-flexible authentication interface (`IAuthP
 | `/api/v1/auth/logout` | `POST` | Yes | Revoke active session token |
 | `/api/v1/auth/forgot-password` | `POST` | No | Send password reset instructions |
 | `/api/v1/auth/me` | `GET` | Yes | Retrieve current authenticated user profile & organization |
+| `/api/v1/organizations` | `POST` | Yes | Create a new law firm or chambers organization |
+| `/api/v1/organizations/me` | `GET` | Yes + Tenant | Retrieve current user's organization profile & member count |
+| `/api/v1/organizations/me` | `PATCH` | Yes + Admin | Update firm details (restricted to ADMIN role) |
+| `/api/v1/organizations/me/members` | `GET` | Yes + Tenant | List members strictly scoped to the caller's organization |
 
 ---
 

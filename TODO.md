@@ -96,7 +96,7 @@ Acceptance:
 
 ## TASK-006 — Organization model
 
-Status: READY
+Status: DONE
 
 Goal:
 Create organization/tenant model.
@@ -110,7 +110,7 @@ Acceptance:
 
 ## TASK-007 — Authorization foundation
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Create server-side resource authorization utilities.
@@ -650,4 +650,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-006 — Organization model.**
+**TASK-007 — Authorization foundation.**

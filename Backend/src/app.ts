@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import organizationRoutes from './routes/organization.routes.js';
 import { sendError } from './utils/api-response.js';
 
 dotenv.config();
@@ -28,6 +29,7 @@ export const createApp = (): Express => {
 
   // API V1 Feature Routes
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/organizations', organizationRoutes);
 
   // 404 Fallback Handler
   app.use((_req: Request, res: Response) => {

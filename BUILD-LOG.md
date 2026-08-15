@@ -228,7 +228,37 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Decoupling Auth provider implementation behind TypeScript interfaces enables seamless switching from Supabase Auth to Auth0 or custom JWT solutions without refactoring backend HTTP APIs.
 
 ### Next
-- TASK-006 — Organization model.
+- TASK-007 — Authorization foundation.
+
+---
+
+## 2026-08-15 — TASK-006 Organization Model & Tenant Boundaries Established
+
+### Built
+- Implemented tenant isolation middleware `requireTenant` (`Backend/src/middleware/tenant.middleware.ts`) enforcing organization identity boundaries.
+- Built Organization domain management service (`Backend/src/services/organization.service.ts`) encapsulating Prisma queries for organization creation, updates, and member roster queries.
+- Built Organization API endpoints (`Backend/src/routes/organization.routes.ts`) for `POST /api/v1/organizations`, `GET /api/v1/organizations/me`, `PATCH /api/v1/organizations/me`, and `GET /api/v1/organizations/me/members`.
+- Registered `/api/v1/organizations` in Express app (`Backend/src/app.ts`).
+- Created unit test suite (`Backend/tests/unit/organization.test.ts`) and multi-tenant HTTP isolation test suite (`Backend/tests/integration/organization.test.ts`).
+
+### Decisions
+- Mandated `requireTenant` middleware on all tenant-scoped routes to ensure `req.organizationId` is always verified server-side.
+- Automatically promoted organization creator to `ADMIN` role upon creation.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` across the workspace executed with 0 errors or warnings.
+
+### Tests / metrics
+- Workspace Root `npm test`: 39 passing tests (36 Backend, 3 Frontend), 0 failures.
+- Multi-Tenant Isolation Tests: Verified that User in Org B cannot observe or query members belonging to Org A.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Centralizing tenant validation in middleware ensures consistent multi-tenant boundary checks across current and future resources (cases, documents, audit logs).
+
+### Next
+- TASK-007 — Authorization foundation.
 
 ---
 

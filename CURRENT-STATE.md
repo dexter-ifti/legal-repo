@@ -4,9 +4,9 @@
 
 ## Project status
 
-Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected, vendor-flexible Authentication service live (TASK-001 through TASK-005 complete).
+Frontend and Backend foundation established, test infrastructure active, PostgreSQL database connected, Authentication live, and Organization tenant-isolation model active (TASK-001 through TASK-006 complete).
 
-Express backend equipped with vendor-flexible authentication interface (`IAuthProvider`), Supabase Auth implementation, `MockAuthProvider` for fast testing, Zod input validation schemas, Express authentication middleware (`authenticateToken`, `requireRole`), and API route handlers (`/signup`, `/login`, `/logout`, `/forgot-password`, `/me`). Next step is TASK-006 (Organization model).
+Express backend equipped with tenant-isolation middleware (`requireTenant`), Organization domain management service (`Backend/src/services/organization.service.ts`), organization endpoints (`POST /organizations`, `GET /organizations/me`, `PATCH /organizations/me`, `GET /organizations/me/members`), and unit/integration test suites verifying multi-tenant boundary isolation. Next step is TASK-007 (Authorization foundation).
 
 ---
 
