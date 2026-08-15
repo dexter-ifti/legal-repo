@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes.js';
 import organizationRoutes from './routes/organization.routes.js';
 import caseRoutes from './routes/case.routes.js';
 import documentRoutes from './routes/document.routes.js';
+import { searchRouter } from './routes/search.routes.js';
 import { sendError } from './utils/api-response.js';
 
 dotenv.config();
@@ -34,6 +35,7 @@ export const createApp = (): Express => {
   app.use('/api/v1/organizations', organizationRoutes);
   app.use('/api/v1/cases', caseRoutes);
   app.use('/api/v1/documents', documentRoutes);
+  app.use('/api/v1/search', searchRouter);
 
   // 404 Fallback Handler
   app.use((_req: Request, res: Response) => {

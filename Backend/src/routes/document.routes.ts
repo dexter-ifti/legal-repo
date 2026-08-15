@@ -180,6 +180,108 @@ router.get(
 );
 
 /**
+ * GET /api/v1/documents/:id/download
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Generates a temporary signed download URL or streams authorized PDF file binary.
+ */
+router.get(
+  '/:id/download',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const documentId = req.params.id;
+      const doc = await prisma.document.findUnique({
+        where: { id: documentId },
+      });
+
+      if (!doc) {
+        sendError(res, 'Document not found', 404, 'NOT_FOUND');
+        return;
+      }
+
+      const { getStorageSignedUrl } = await import('../storage/storage.service.js');
+      const downloadUrl = await getStorageSignedUrl(doc.storageKey, 900);
+      const expiresAt = new Date(Date.now() + 900 * 1000).toISOString();
+
+      // Emit audit log for document download
+      await prisma.auditEvent.create({
+        data: {
+          organizationId: req.organizationId!,
+          entityType: 'Document',
+          entityId: documentId,
+          eventType: 'DOCUMENT_ACCESSED',
+          metadata: { action: 'DOWNLOAD', filename: doc.originalFilename },
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          downloadUrl,
+          expiresAt,
+          document: {
+            id: doc.id,
+            originalFilename: doc.originalFilename,
+            mimeType: doc.mimeType,
+            fileSize: doc.fileSize ? Number(doc.fileSize) : 0,
+          },
+        },
+      });
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to generate download URL';
+      sendError(res, message, 500, 'DOWNLOAD_ERROR');
+    }
+  }
+);
+
+/**
+ * GET /api/v1/documents/:id/preview
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * Streams binary PDF preview stream inline with security headers.
+ */
+router.get(
+  '/:id/preview',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const documentId = req.params.id;
+      const doc = await prisma.document.findUnique({
+        where: { id: documentId },
+      });
+
+      if (!doc) {
+        sendError(res, 'Document not found', 404, 'NOT_FOUND');
+        return;
+      }
+
+      const { getStorageFileBuffer } = await import('../storage/storage.service.js');
+      const fileBuffer = await getStorageFileBuffer(doc.storageKey);
+
+      res.setHeader('Content-Type', doc.mimeType || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.originalFilename)}"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+
+      res.send(fileBuffer);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to generate preview';
+      sendError(res, message, 500, 'PREVIEW_ERROR');
+    }
+  }
+);
+
+/**
  * POST /api/v1/documents/:id/extract
  * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
  * Triggers native PDF text extraction and metadata persistence.

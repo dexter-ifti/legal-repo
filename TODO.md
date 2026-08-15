@@ -445,7 +445,7 @@ Acceptance:
 
 ## TASK-027 — Search index
 
-Status: READY
+Status: DONE
 
 Goal:
 Index case/document metadata and extracted text.
@@ -454,7 +454,7 @@ Index case/document metadata and extracted text.
 
 ## TASK-028 — Basic search API
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Search:
@@ -470,7 +470,7 @@ Search:
 
 ## TASK-029 — Search UI
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Build global search and result excerpts.
@@ -479,7 +479,7 @@ Build global search and result excerpts.
 
 ## TASK-030 — Document viewer/download
 
-Status: BLOCKED
+Status: DONE
 
 Goal:
 Secure preview/download.
@@ -495,7 +495,7 @@ Acceptance:
 
 ## TASK-031 — Audit trail
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Record important document actions.

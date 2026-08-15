@@ -547,7 +547,36 @@ Begin TASK-002 — Establish frontend/backend foundation.
 - Weighted signal composition with deterministic thresholds guarantees exact match precision while allowing human confirmation when metadata is partial or ambiguous.
 
 ### Next
-- Milestone 6 — TASK-027 Search Index & Document Search.
+- Milestone 6 (TASK-027 — TASK-030).
+
+---
+
+## 2026-08-15 — Milestone 6 (Retrieval & Search Engine) Complete
+
+### Built
+- **TASK-027 (Search Indexing Service)**: Built `SearchIndexService` (`Backend/src/services/search/search-index.service.ts`) with multi-field tenant-isolated querying over case titles, case numbers, CNR numbers, parties, courts, document types, filenames, and extracted text snippet context generation.
+- **TASK-028 (Search REST API)**: Created `GET /api/v1/search` (`Backend/src/routes/search.routes.ts`) with user authentication, organization authorization, and pagination controls.
+- **TASK-029 (Global Search UI)**: Connected `SearchPage` (`Frontend/app/(app)/search/page.tsx`) to backend `/api/v1/search` REST API with highlighted text snippet excerpts, case relation badges, and document classification tags.
+- **TASK-030 (Secure Viewer & Signed Download)**: Created `GET /api/v1/documents/:id/download` (generating 15-minute temporary signed URLs with `DOCUMENT_ACCESSED` audit logging) and `GET /api/v1/documents/:id/preview` (streaming inline PDF preview with strict security headers).
+
+### Decisions
+- Strictly enforced server-side organization authorization (`organizationId`) for all search and file retrieval operations to ensure zero cross-tenant data leakage.
+
+### Problems
+- None. `npm run typecheck`, `npm run lint`, unit tests, and production build executed cleanly.
+
+### Tests / metrics
+- Backend `npm run typecheck`: 0 errors.
+- Backend `npm run lint`: 0 errors.
+- Frontend `npm run typecheck`: 0 errors.
+- Frontend `npm run build`: 13/13 static pages compiled successfully.
+- Unit Test Suite: 27/27 tests passing with 0 failures (`SearchIndexService` unit tests included).
+
+### Learning
+- Generating short-lived temporary signed URLs with strict server-side ownership checks guarantees document privacy without exposing object storage bucket keys publicly.
+
+### Next
+- Milestone 7 — TASK-031 Audit Trail & TASK-032 Retry/Idempotency.
 
 ---
 

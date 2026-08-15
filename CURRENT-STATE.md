@@ -4,14 +4,14 @@
 
 ## Project status
 
-**Milestones 1, 2, 3, 4 & 5 Complete** (Identity, Multi-Tenancy, Document Ingestion, Document Understanding, and Case Matching Engine).  
-Ready for **Milestone 6 (Retrieval & Search Indexing)** starting with **TASK-027 — Search Index & Document Search**.
+**Milestones 1, 2, 3, 4, 5 & 6 Complete** (Identity, Multi-Tenancy, Document Ingestion, Document Understanding, Case Matching Engine, and Retrieval & Search Engine).  
+Ready for **Milestone 7 (Audit & Reliability)** starting with **TASK-031 — Audit Trail**.
 
 System status:
 - TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
 - ESLint checks passing with 0 warnings or errors (`npm run lint`).
 - Next.js frontend production build passing with 13/13 static pages generated (`npm run build`).
-- Unit test suite passing 100% offline (`23 passed, 0 failed`).
+- Unit test suite passing 100% offline (`27 passed, 0 failed`).
 - Clean Git repository tree on `master` branch.
 
 ---
@@ -108,12 +108,22 @@ Correct legal documents automatically identified and filed into the correct case
 
 ---
 
+### Milestone 6 — Retrieval & Search Engine (TASK-027 — TASK-030)
+- **TASK-027 (Search Indexing Service)**: Built `SearchIndexService` (`Backend/src/services/search/search-index.service.ts`) supporting tenant-isolated query searching across case title, CNR, case number, party names, court, document type, filename, and extracted text metadata with context snippet generation.
+- **TASK-028 (Search REST API)**: Created `GET /api/v1/search` (`Backend/src/routes/search.routes.ts`) with strict organization authorization and query pagination.
+- **TASK-029 (Global Search UI)**: Connected `SearchPage` (`Frontend/app/(app)/search/page.tsx`) to backend `/api/v1/search` API with highlight excerpts, case badges, and document classification tags.
+- **TASK-030 (Secure Viewer & Signed Download)**: Created `GET /api/v1/documents/:id/download` (short-lived 15-minute signed URLs with `DOCUMENT_ACCESSED` audit trail) and `GET /api/v1/documents/:id/preview` (inline security headers).
+
+---
+
 ## What is next
 
-### Active Milestone: Milestone 6 — Retrieval & Search Indexing
+### Active Milestone: Milestone 7 — Audit & Reliability
 
-1. **TASK-027 — Search Index & Document Search**:
-   - Index document metadata and extracted text for fast tenant-isolated search.
+1. **TASK-031 — Audit Trail**:
+   - Record comprehensive audit logs for all critical document lifecycle events.
+2. **TASK-032 — Processing Retry & Idempotency**:
+   - Ensure document pipeline execution jobs are retryable without duplicate creation or state corruption.
 
 ## Current risks
 

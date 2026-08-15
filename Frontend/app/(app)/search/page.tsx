@@ -3,118 +3,114 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, FileText, X, Filter } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Search, FileText, X, Filter, Sparkles, Building2, Download } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
-import { documents, cases } from '@/lib/mock-data';
-import { formatFileSize, formatRelativeTime } from '@/lib/format';
+import { formatRelativeTime } from '@/lib/format';
+import { toast } from 'sonner';
+
+export interface SearchResultItem {
+  id: string;
+  originalFilename: string;
+  documentType: string | null;
+  processingStatus: string;
+  matchStatus: string;
+  uploadedAt: string;
+  case: {
+    id: string;
+    title: string;
+    caseNumber: string | null;
+    cnrNumber: string | null;
+    court: string | null;
+  } | null;
+  excerpt: string | null;
+  matchedFields: string[];
+}
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
   const [query, setQuery] = useState(initialQuery);
-  const [category, setCategory] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchSearchResults = async (q: string) => {
+    if (!q.trim()) {
+      setResults([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+      const res = await fetch(`${API_URL}/api/v1/search?q=${encodeURIComponent(q)}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      setResults(data.data?.results || []);
+    } catch (err: unknown) {
+      console.error('Search query error:', err);
+      toast.error('Failed to execute search query');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setQuery(initialQuery);
+    if (initialQuery) fetchSearchResults(initialQuery);
   }, [initialQuery]);
 
-  const results = documents.filter((d) => {
-    const q = query.toLowerCase().trim();
-    const matchesQuery =
-      !q ||
-      d.title.toLowerCase().includes(q) ||
-      d.caseName.toLowerCase().includes(q) ||
-      d.category.toLowerCase().includes(q) ||
-      d.tags.some((t) => t.toLowerCase().includes(q));
-    const matchesCategory = category === 'all' || d.category === category;
-    const matchesStatus = status === 'all' || d.status === status;
-    return matchesQuery && matchesCategory && matchesStatus;
-  });
-
-  const categories = Array.from(new Set(documents.map((d) => d.category)));
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchSearchResults(query);
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6 lg:p-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Search</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <Search className="h-6 w-6 text-brand" />
+          Global Tenant Search
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Search across all documents, cases, and content
+          Instant multi-field search across case titles, numbers, parties, document types, and extracted text.
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <form onSubmit={handleSearchSubmit} className="flex gap-2">
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search documents, cases, categories..."
+            placeholder="Search cases, case numbers, CNR, parties, or document contents..."
             className="pl-9"
             autoFocus
           />
           {query && (
             <button
-              onClick={() => setQuery('')}
+              type="button"
+              onClick={() => {
+                setQuery('');
+                setResults([]);
+              }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
-        <Button
-          variant={showFilters ? 'default' : 'outline'}
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <Filter className="mr-2 h-4 w-4" />
-          Filters
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Searching...' : 'Search'}
         </Button>
-      </div>
-
-      {showFilters && (
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="uploaded">Uploaded</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="review">In Review</SelectItem>
-              <SelectItem value="filed">Filed</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      </form>
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
@@ -125,16 +121,16 @@ export default function SearchPage() {
 
       {results.length === 0 ? (
         <Card>
-          <CardContent className="py-6">
+          <CardContent className="py-12">
             <EmptyState
               icon={Search}
-              title="No results found"
-              description="Try a different search term or adjust your filters."
+              title={query ? 'No matching records found' : 'Enter search terms to begin'}
+              description={query ? 'Try searching by CNR number, party name, or legal petition keywords.' : 'Type keywords in the search bar above.'}
             />
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {results.map((doc) => (
             <Link
               key={doc.id}
@@ -142,33 +138,46 @@ export default function SearchPage() {
               className="group block rounded-xl border bg-card p-4 transition-all hover:border-brand hover:shadow-sm"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-semibold uppercase text-muted-foreground">
-                  {doc.fileType}
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold text-xs uppercase">
+                  PDF
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-sm font-semibold text-foreground group-hover:text-brand">
-                      {doc.title}
+                      {doc.originalFilename}
                     </h3>
-                    <PriorityBadge priority={doc.priority} />
+                    {doc.documentType && (
+                      <Badge variant="outline" className="text-[11px]">
+                        {doc.documentType}
+                      </Badge>
+                    )}
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {doc.caseName} · {doc.category} · {doc.pageCount} pages · {formatFileSize(doc.fileSize)} · {formatRelativeTime(doc.uploadedAt)}
-                  </p>
-                  {doc.summary && (
-                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">
-                      {doc.summary}
+
+                  {doc.case && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Building2 className="h-3.5 w-3.5 text-brand" />
+                      <span className="font-medium text-foreground">{doc.case.title}</span>
+                      {doc.case.caseNumber && <span className="font-mono bg-secondary px-1.5 py-0.5 rounded text-foreground">{doc.case.caseNumber}</span>}
+                    </div>
+                  )}
+
+                  {doc.excerpt && (
+                    <p className="mt-1.5 text-xs text-muted-foreground bg-secondary/40 p-2 rounded-md font-mono line-clamp-2">
+                      &ldquo;{doc.excerpt}&rdquo;
                     </p>
                   )}
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    {doc.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="text-xs font-normal">
-                        {tag}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 pt-1">
+                    {doc.matchedFields.map((field) => (
+                      <Badge key={field} variant="secondary" className="text-[11px] font-normal">
+                        Matched: {field}
                       </Badge>
                     ))}
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      Uploaded {formatRelativeTime(doc.uploadedAt)}
+                    </span>
                   </div>
                 </div>
-                <StatusBadge status={doc.status} />
               </div>
             </Link>
           ))}

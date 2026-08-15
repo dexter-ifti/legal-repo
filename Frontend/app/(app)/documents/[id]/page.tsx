@@ -97,15 +97,27 @@ export default function DocumentViewerPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Share2 className="mr-1.5 h-4 w-4" />
-            Share
-          </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={async () => {
+            try {
+              const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+              const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+              const res = await fetch(`${API_URL}/api/v1/documents/${docId}/download`, {
+                headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+              });
+              const data = await res.json();
+              if (data.data?.downloadUrl) {
+                window.open(data.data.downloadUrl, '_blank');
+              } else {
+                alert('Downloading file binary...');
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }}>
             <Download className="mr-1.5 h-4 w-4" />
             Download
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => window.print()}>
             <Printer className="mr-1.5 h-4 w-4" />
             Print
           </Button>
