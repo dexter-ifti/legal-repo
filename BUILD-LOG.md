@@ -491,6 +491,33 @@ Begin TASK-002 — Establish frontend/backend foundation.
 
 ---
 
+## 2026-08-15 — TASK-015 Upload UI Complete
+
+### Built
+- Created `DocumentUploadDropzone` component (`Frontend/components/documents/document-upload-dropzone.tsx`) supporting drag & drop PDF uploading, 50MB file validation, live progress indicators, and Upload First optional case selection.
+- Refactored `UploadPage` (`Frontend/app/(app)/upload/page.tsx`) to integrate real backend API calls (`POST /api/v1/documents/upload`) and render session upload logs.
+- Added duplicate file detection UI states: when backend returns `isDuplicate: true`, renders a warning banner with SHA-256 preview and a direct link to view the existing document (`/documents/:id`).
+- Added frontend unit test suite (`Frontend/tests/unit/upload-ui.test.ts`) validating upload file type/size filters and Upload First unassigned payload formatting.
+
+### Decisions
+- Setting the destination case selector default to `"Unassigned (Upload First)"` directly adheres to core product rule #4, enabling advocates to ingest documents immediately without friction.
+
+### Problems
+- None. `npm test`, `npm run typecheck`, and `npm run lint` executed with 0 errors or warnings across workspace.
+
+### Tests / metrics
+- Workspace Root `npm test`: 111 passing tests (101 Backend, 10 Frontend), 0 failures.
+- Workspace Root `npm run typecheck`: 0 errors.
+- Workspace Root `npm run lint`: 0 errors.
+
+### Learning
+- Optional case selection with clean fallback defaults (`caseId: null`) preserves zero-trust API contracts while delivering a smooth UX.
+
+### Next
+- TASK-016 — Native PDF text extraction.
+
+---
+
 ## Template for future entries
 
 ### YYYY-MM-DD — Short title

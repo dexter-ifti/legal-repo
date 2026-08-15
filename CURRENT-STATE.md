@@ -4,9 +4,9 @@
 
 ## Project status
 
-Milestones 1 & 2 Complete (Identity, Organization & Case Management). Milestone 3 (Document Ingestion) active: Duplicate Detection and pre-lookup API operational (`GET /api/v1/documents/by-hash/:sha256`).
+Milestones 1, 2 & 3 Complete (Identity, Case Management & Document Ingestion). Milestone 4 (Document Understanding) active.
 
-Tenant-scoped SHA-256 duplicate detection established: `DocumentService.findDuplicateBySha256` uses compound database indexes `[organizationId, sha256]`. When duplicate documents are uploaded within an organization, the system returns HTTP 200 OK with `isDuplicate: true` and the existing document metadata without duplicating private binary storage. Cross-tenant isolation ensures Organizations A and B uploading identical binaries maintain independent records. (TASK-001 through TASK-014 complete). Next step is TASK-015 (Upload UI).
+Upload UI and Document Ingestion Pipeline complete: `DocumentUploadDropzone` component (`Frontend/components/documents/document-upload-dropzone.tsx`) implements the Upload First principle (optional case selection), drag & drop PDF ingestion (up to 50MB), live upload progress tracking, duplicate file alert card with direct links to existing documents, real API integration (`POST /api/v1/documents/upload`), and comprehensive unit test coverage (`Frontend/tests/unit/upload-ui.test.ts`). (TASK-001 through TASK-015 complete). Next step is TASK-016 (Native PDF text extraction).
 
 ---
 

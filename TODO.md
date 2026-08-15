@@ -242,7 +242,7 @@ Acceptance:
 
 ## TASK-015 — Upload UI
 
-Status: READY
+Status: DONE
 
 Goal:
 Build upload/dropzone experience.
@@ -260,7 +260,7 @@ Acceptance:
 
 ## TASK-016 — Native PDF text extraction
 
-Status: BLOCKED
+Status: READY
 
 Goal:
 Extract text from text-based PDFs.
@@ -648,4 +648,4 @@ Do not build yet:
 
 # Current next task
 
-**TASK-015 — Upload UI.**
+**TASK-016 — Native PDF text extraction.**
