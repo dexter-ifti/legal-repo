@@ -116,7 +116,7 @@ export class DocumentService {
         });
       }
 
-      let uploaderUser = await prisma.user.findUnique({ where: { id: uploadedBy } });
+      const uploaderUser = await prisma.user.findUnique({ where: { id: uploadedBy } });
       if (!uploaderUser) {
         await prisma.user.create({
           data: {

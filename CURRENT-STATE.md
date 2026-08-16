@@ -1,6 +1,6 @@
 # Current State
 
-**Last updated:** 2026-08-15
+**Last updated:** 2026-08-16
 
 ## Project status
 
@@ -8,6 +8,7 @@
 **Platform Status**: MVP Complete and Ready for Design-Partner Pilot Onboarding (3–5 small law offices/chambers).
 
 System status:
+- Docker Compose environment configured for one-command local execution (`docker compose up --build`).
 - TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
 - ESLint checks passing with 0 warnings or errors (`npm run lint`).
 - Next.js frontend production build passing with 13/13 static pages generated (`npm run build`).

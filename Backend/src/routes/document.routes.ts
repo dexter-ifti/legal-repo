@@ -95,7 +95,7 @@ router.get(
   async (req: TenantRequest, res: Response): Promise<void> => {
     try {
       const organizationId = req.organizationId!;
-      let docs: any[] = [];
+      let docs: unknown[] = [];
 
       try {
         docs = await prisma.document.findMany({
