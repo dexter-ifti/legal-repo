@@ -12,13 +12,15 @@ export async function authenticateToken(
   res: Response,
   next: NextFunction
 ): Promise<void> {
+  let token: string | undefined;
+
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    sendError(res, 'Authentication token required', 401, 'UNAUTHORIZED');
-    return;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query.token && typeof req.query.token === 'string') {
+    token = req.query.token;
   }
 
-  const token = authHeader.split(' ')[1];
   if (!token) {
     sendError(res, 'Authentication token required', 401, 'UNAUTHORIZED');
     return;

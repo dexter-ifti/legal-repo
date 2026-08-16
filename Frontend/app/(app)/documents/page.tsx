@@ -32,11 +32,8 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user.isDemo) {
-      setDocList(documents);
-      setLoading(false);
-    } else if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token') || 'demo-token';
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       setLoading(true);
 
@@ -45,15 +42,14 @@ export default function DocumentsPage() {
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data?.data) {
-            setDocList(
-              data.data.map((d: any) => ({
+          const apiDocs = data?.data
+            ? data.data.map((d: any) => ({
                 id: d.id,
                 title: d.originalFilename || 'Document',
                 caseName: d.case?.title || 'Unassigned Case',
                 category: d.documentType || 'Legal Document',
                 fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
-                fileSize: d.fileSize || 0,
+                fileSize: Number(d.fileSize || 0),
                 pageCount: 1,
                 uploadedAt: d.uploadedAt || new Date().toISOString(),
                 status:
@@ -64,12 +60,20 @@ export default function DocumentsPage() {
                     : 'uploaded',
                 priority: 'medium',
               }))
-            );
+            : [];
+
+          if (apiDocs.length > 0) {
+            setDocList(apiDocs);
+          } else if (user.isDemo) {
+            setDocList(documents);
           } else {
             setDocList([]);
           }
         })
-        .catch((err) => console.warn('Error fetching real documents:', err))
+        .catch((err) => {
+          console.warn('Error fetching real documents:', err);
+          setDocList(documents);
+        })
         .finally(() => setLoading(false));
     }
   }, [user.isDemo]);

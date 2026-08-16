@@ -60,17 +60,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user.isDemo && typeof window !== 'undefined') {
+    if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       setLoading(true);
 
       Promise.all([
         fetch(`${baseUrl}/api/v1/documents`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         }).then((res) => (res.ok ? res.json() : null)),
         fetch(`${baseUrl}/api/v1/cases`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         }).then((res) => (res.ok ? res.json() : null)),
       ])
         .then(([docRes, caseRes]) => {
@@ -80,11 +80,11 @@ export default function DashboardPage() {
         .catch((err) => console.warn('Error fetching dashboard real data:', err))
         .finally(() => setLoading(false));
     }
-  }, [user.isDemo]);
+  }, []);
 
   const isDemo = user.isDemo;
 
-  const totalDocCount = isDemo ? dashboardStats.totalDocuments : realDocs.length;
+  const totalDocCount = isDemo ? dashboardStats.totalDocuments + realDocs.length : realDocs.length;
   const filedDocCount = isDemo
     ? dashboardStats.filedDocuments
     : realDocs.filter(
@@ -102,20 +102,25 @@ export default function DashboardPage() {
       ).length;
   const hoursSavedCount = isDemo ? dashboardStats.hoursSaved : Math.round(realDocs.length * 1.5);
 
-  const displayDocs = isDemo
-    ? documents.slice(0, 5)
-    : realDocs.slice(0, 5).map((d) => ({
-        id: d.id,
-        title: d.originalFilename || 'Document',
-        caseName: d.case?.title || 'Unassigned',
-        fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
-        uploadedAt: d.uploadedAt || new Date().toISOString(),
-        status: (d.matchStatus === 'AUTO_MATCH' || d.matchStatus === 'CONFIRMED'
-          ? 'filed'
-          : d.matchStatus === 'CONFIRMATION_REQUIRED'
-          ? 'review'
-          : 'uploaded') as DocStatus,
-      }));
+  const formattedRealDocs = realDocs.map((d) => ({
+    id: d.id,
+    title: d.originalFilename || 'Document',
+    caseName: d.case?.title || 'Unassigned Case',
+    fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
+    uploadedAt: d.uploadedAt || new Date().toISOString(),
+    status: (d.matchStatus === 'AUTO_MATCH' || d.matchStatus === 'CONFIRMED'
+      ? 'filed'
+      : d.matchStatus === 'CONFIRMATION_REQUIRED'
+      ? 'review'
+      : 'uploaded') as DocStatus,
+  }));
+
+  const displayDocs =
+    realDocs.length > 0
+      ? formattedRealDocs.slice(0, 5)
+      : isDemo
+      ? documents.slice(0, 5)
+      : [];
 
   const displayCases = isDemo
     ? cases.filter((c) => c.status === 'active').slice(0, 4)
