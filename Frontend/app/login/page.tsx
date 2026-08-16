@@ -125,6 +125,27 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* Quick Demo Login Option */}
+          <div className="mt-6 rounded-lg border bg-secondary/30 p-3 text-center">
+            <p className="text-xs text-muted-foreground">
+              Want to explore with pre-loaded demo data?
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 w-full text-xs font-semibold text-brand hover:text-brand"
+              onClick={() => {
+                setEmail('sarah.mitchell@lexflow.app');
+                setPassword('demo1234');
+                const form = document.querySelector('form');
+                if (form) form.requestSubmit();
+              }}
+            >
+              ✨ Sign in with Demo Account
+            </Button>
+          </div>
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <button
