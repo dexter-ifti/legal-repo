@@ -25,6 +25,20 @@ export class MockAuthProvider implements IAuthProvider {
   }
 
   async signIn(email: string, password: string): Promise<{ user: AuthUser; session: AuthSession }> {
+    if (email === 'sarah.mitchell@lexflow.app' || email.includes('demo')) {
+      const demoUser: AuthUser = {
+        id: 'usr_sarah',
+        email: 'sarah.mitchell@lexflow.app',
+        name: 'Sarah Mitchell',
+      };
+      const token = 'mock-token-usr_sarah';
+      this.activeTokens.set(token, demoUser);
+      return {
+        user: demoUser,
+        session: { token, user: demoUser },
+      };
+    }
+
     const record = this.users.get(email);
     if (!record || record.password !== password) {
       throw new Error('Invalid login credentials');

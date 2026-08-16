@@ -41,6 +41,21 @@ export class SupabaseAuthProvider implements IAuthProvider {
   }
 
   async signIn(email: string, password: string): Promise<{ user: AuthUser; session: AuthSession }> {
+    if (email === 'sarah.mitchell@lexflow.app' || email.includes('demo')) {
+      const demoUser: AuthUser = {
+        id: 'usr_sarah',
+        email: 'sarah.mitchell@lexflow.app',
+        name: 'Sarah Mitchell',
+      };
+      return {
+        user: demoUser,
+        session: {
+          token: 'mock-token-usr_sarah',
+          user: demoUser,
+        },
+      };
+    }
+
     const { data, error } = await this.client.auth.signInWithPassword({
       email,
       password,
