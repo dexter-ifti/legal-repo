@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { IAuthProvider, AuthUser, AuthSession } from './AuthProvider.js';
+import { DEMO_USERS, demoTokenFor } from './demo-users.js';
 
 export class MockAuthProvider implements IAuthProvider {
   private users: Map<string, { email: string; password: string; name?: string; id: string }> = new Map();
@@ -25,13 +26,9 @@ export class MockAuthProvider implements IAuthProvider {
   }
 
   async signIn(email: string, password: string): Promise<{ user: AuthUser; session: AuthSession }> {
-    if (email === 'sarah.mitchell@lexflow.app' || email.includes('demo')) {
-      const demoUser: AuthUser = {
-        id: 'usr_sarah',
-        email: 'sarah.mitchell@lexflow.app',
-        name: 'Sarah Mitchell',
-      };
-      const token = 'mock-token-usr_sarah';
+    if (email === DEMO_USERS.sarahMitchell.email || email.includes('demo')) {
+      const demoUser: AuthUser = { ...DEMO_USERS.sarahMitchell };
+      const token = demoTokenFor(demoUser.id);
       this.activeTokens.set(token, demoUser);
       return {
         user: demoUser,

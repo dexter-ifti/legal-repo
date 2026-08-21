@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { IAuthProvider, AuthUser, AuthSession } from './AuthProvider.js';
+import { DEMO_USERS, demoTokenFor } from './demo-users.js';
 
 export class SupabaseAuthProvider implements IAuthProvider {
   private client: SupabaseClient;
@@ -41,16 +42,12 @@ export class SupabaseAuthProvider implements IAuthProvider {
   }
 
   async signIn(email: string, password: string): Promise<{ user: AuthUser; session: AuthSession }> {
-    if (email === 'sarah.mitchell@lexflow.app' || email.includes('demo')) {
-      const demoUser: AuthUser = {
-        id: 'usr_sarah',
-        email: 'sarah.mitchell@lexflow.app',
-        name: 'Sarah Mitchell',
-      };
+    if (email === DEMO_USERS.sarahMitchell.email || email.includes('demo')) {
+      const demoUser: AuthUser = { ...DEMO_USERS.sarahMitchell };
       return {
         user: demoUser,
         session: {
-          token: 'mock-token-usr_sarah',
+          token: demoTokenFor(demoUser.id),
           user: demoUser,
         },
       };
@@ -97,21 +94,13 @@ export class SupabaseAuthProvider implements IAuthProvider {
 
   async verifyToken(token: string): Promise<AuthUser> {
     if (token.startsWith('mock-token-') || token === 'demo-token') {
-      return {
-        id: 'usr_sarah',
-        email: 'sarah.mitchell@lexflow.app',
-        name: 'Sarah Mitchell',
-      };
+      return { ...DEMO_USERS.sarahMitchell };
     }
 
     const { data, error } = await this.client.auth.getUser(token);
     if (error || !data.user) {
       if (token && token.length > 10) {
-        return {
-          id: 'usr_dev_fallback',
-          email: 'advocate@lexflow.app',
-          name: 'Legal Advocate',
-        };
+        return { ...DEMO_USERS.genericAdvocate };
       }
       throw new Error('Invalid or expired authentication token');
     }

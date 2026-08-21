@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { currentUser as mockCurrentUser } from './mock-data';
+import { DEMO_USER_IDS } from './demo-users';
 
 export interface UserProfile {
   id: string;
@@ -44,7 +45,7 @@ export function useUserProfile(): { user: UserProfile; loading: boolean } {
               : name.slice(0, 2).toUpperCase();
 
           setUser({
-            id: parsed.id || (isDemo ? 'usr_sarah' : 'usr_real'),
+            id: parsed.id || (isDemo ? DEMO_USER_IDS.sarahMitchell : DEMO_USER_IDS.genericAdvocate),
             name,
             email,
             role: parsed.role || (isDemo ? 'Senior Paralegal' : 'Advocate / Lawyer'),

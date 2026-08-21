@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { MockAuthProvider } from '../../src/auth/MockAuthProvider.js';
+import { SupabaseAuthProvider } from '../../src/auth/SupabaseAuthProvider.js';
+import { DEMO_USERS } from '../../src/auth/demo-users.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 test('MockAuthProvider Unit Tests', async (t) => {
   const authProvider = new MockAuthProvider();
@@ -51,5 +55,36 @@ test('MockAuthProvider Unit Tests', async (t) => {
       },
       { message: 'Invalid or expired authentication token' }
     );
+  });
+
+  await t.test('demo sign-in returns deterministic UUID user id and matching token', async () => {
+    const demoResult = await authProvider.signIn(DEMO_USERS.sarahMitchell.email, 'any-password');
+    assert.match(demoResult.user.id, UUID_REGEX);
+    assert.strictEqual(demoResult.user.id, DEMO_USERS.sarahMitchell.id);
+    assert.strictEqual(demoResult.session.token, `mock-token-${demoResult.user.id}`);
+
+    const verified = await authProvider.verifyToken(demoResult.session.token);
+    assert.strictEqual(verified.id, DEMO_USERS.sarahMitchell.id);
+  });
+
+  await t.test('demo sign-in via email containing "demo" also returns a UUID id', async () => {
+    const demoResult = await authProvider.signIn('someone@demo.com', 'password');
+    assert.match(demoResult.user.id, UUID_REGEX);
+    assert.strictEqual(demoResult.session.token, `mock-token-${demoResult.user.id}`);
+  });
+});
+
+test('SupabaseAuthProvider demo token fallback uses valid UUID ids', async (t) => {
+  const provider = new SupabaseAuthProvider();
+
+  await t.test('mock token resolves to deterministic UUID demo user', async () => {
+    const user = await provider.verifyToken('mock-token-any-value');
+    assert.match(user.id, UUID_REGEX);
+    assert.strictEqual(user.id, DEMO_USERS.sarahMitchell.id);
+  });
+
+  await t.test('legacy demo-token still resolves to the same UUID demo user', async () => {
+    const user = await provider.verifyToken('demo-token');
+    assert.strictEqual(user.id, DEMO_USERS.sarahMitchell.id);
   });
 });
