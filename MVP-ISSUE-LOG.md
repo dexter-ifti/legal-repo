@@ -253,6 +253,8 @@ Suggested fix:
 
 ### 16. Build has non-blocking deployment hygiene warnings
 
+> **Status: FIXED (2026-08-21)** — `metadataBase` is now set in `Frontend/app/layout.tsx` from `NEXT_PUBLIC_APP_URL` (fallback `http://localhost:3000`), and caniuse-lite/Browserslist data was refreshed via `npx browserslist --update-db`. `npm run build` completes with no metadata or Browserslist warnings.
+
 Evidence:
 - `npm run build` passes but warns that `metadata.metadataBase` is not set and Browserslist data is outdated.
 

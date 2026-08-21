@@ -5,6 +5,7 @@ const inter = { variable: 'font-sans' };
 const jetbrainsMono = { variable: 'font-mono' };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: 'LexFlow — Legal Document Automation',
   description:
     'Automate legal document workflows — scan, OCR, classify, and file with AI-powered precision.',
