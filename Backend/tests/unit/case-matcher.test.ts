@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { defaultCandidateGenerationService, normalizeIdentifier } from '../../src/services/matching/candidate-generation.service.js';
+import {
+  defaultCandidateGenerationService,
+  normalizeIdentifier,
+  normalizeCourtTokens,
+} from '../../src/services/matching/candidate-generation.service.js';
 
 test('normalizeIdentifier Unit Tests', () => {
   assert.strictEqual(normalizeIdentifier('W.P. NO. 1024 / 2026'), 'WPNO10242026');
@@ -72,4 +76,50 @@ test('CandidateGenerationService Unit Tests', async (t) => {
     assert.strictEqual(result[0].caseId, 'c2');
     assert.ok(result[0].totalScore >= 0.40 && result[0].totalScore <= 0.70);
   });
+
+  await t.test('matches court names across naming conventions (Judicature/filler words)', () => {
+    const sampleCases = [
+      {
+        id: 'c2',
+        title: 'Patel Petition',
+        caseNumber: 'W.P. 5050 OF 2025',
+        cnrNumber: 'MHXX010099992025',
+        clientName: 'Patel Developers',
+        court: 'High Court of Bombay',
+      },
+    ];
+
+    const result = defaultCandidateGenerationService.scoreCandidateCases(sampleCases, {
+      clientName: 'Patel Developers',
+      court: 'high court of judicature at bombay',
+    });
+
+    assert.strictEqual(result.length, 1);
+    assert.ok(result[0].signals.some((s) => s.type === 'COURT'));
+  });
+
+  await t.test('does not match different courts', () => {
+    const sampleCases = [
+      {
+        id: 'c3',
+        title: 'Delhi Matter',
+        caseNumber: 'W.P. 1 OF 2025',
+        court: 'High Court of Delhi',
+      },
+    ];
+
+    const result = defaultCandidateGenerationService.scoreCandidateCases(sampleCases, {
+      court: 'High Court of Bombay',
+    });
+
+    assert.strictEqual(result.length, 0);
+  });
+});
+
+test('normalizeCourtTokens Unit Tests', () => {
+  assert.deepStrictEqual(
+    normalizeCourtTokens('High Court of Judicature at Bombay'),
+    new Set(['high', 'court', 'bombay'])
+  );
+  assert.deepStrictEqual(normalizeCourtTokens(null), new Set());
 });

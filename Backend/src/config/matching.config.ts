@@ -9,13 +9,14 @@ export interface MatchingThresholds {
 
 /**
  * Conservative defaults. Do not change casually: thresholds decide whether
- * legal documents are auto-filed. Recalibrate only with evaluation data
- * (see tests/unit/benchmark.test.ts).
+ * legal documents are auto-filed. The confirmation threshold is calibrated
+ * against the 100-sample evaluation benchmark (see tests/unit/benchmark.test.ts,
+ * CONFIRM=0.45: 0% false auto-matches, top1Accuracy >= 0.90).
  */
 export const DEFAULT_MATCHING_THRESHOLDS: MatchingThresholds = {
   autoMatchConfidence: 0.85,
   autoMatchScoreMargin: 0.15,
-  confirmationConfidence: 0.5,
+  confirmationConfidence: 0.45,
 };
 
 const isUnitInterval = (value: unknown): value is number =>

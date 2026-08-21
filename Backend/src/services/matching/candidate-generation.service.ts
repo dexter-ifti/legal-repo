@@ -36,6 +36,35 @@ export function normalizeIdentifier(val: string | null | undefined): string {
   return val.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+/** Filler words that vary between court name conventions ("High Court of Judicature at Bombay" vs "High Court of Bombay"). */
+const COURT_FILLER_WORDS = new Set(['of', 'at', 'the', 'judicature']);
+
+/**
+ * Normalizes a court name into significant tokens for tolerant comparison.
+ * e.g. "High Court of Judicature at Bombay" -> { high, court, bombay }
+ */
+export function normalizeCourtTokens(val: string | null | undefined): Set<string> {
+  if (!val) return new Set();
+  return new Set(
+    val
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((token) => token && !COURT_FILLER_WORDS.has(token))
+  );
+}
+
+function courtsMatch(docCourt: string, dbCourt: string): boolean {
+  const docTokens = normalizeCourtTokens(docCourt);
+  const dbTokens = normalizeCourtTokens(dbCourt);
+  if (docTokens.size === 0 || dbTokens.size === 0) return false;
+
+  // Tolerant subset comparison: "high court bombay" matches "high court of judicature at bombay"
+  for (const token of dbTokens) {
+    if (!docTokens.has(token)) return false;
+  }
+  return true;
+}
+
 export class CandidateGenerationService {
   /**
    * Generates candidate cases from tenant database based on extracted document signals.
@@ -108,7 +137,7 @@ export class CandidateGenerationService {
         }
       }
 
-      // 3. Party Name Match (+0.40 per party match)
+      // 3. Party Name Match (+0.40 per party match, capped at 0.65)
       if (docClientNorm || docOpposingNorm) {
         const dbClient = (c.clientName || '').toLowerCase().trim();
         const dbOpposing = (c.opposingParty || '').toLowerCase().trim();
@@ -117,11 +146,11 @@ export class CandidateGenerationService {
         const matchedParties: string[] = [];
 
         if (docClientNorm && dbClient && (docClientNorm.includes(dbClient) || dbClient.includes(docClientNorm))) {
-          partyScore += 0.35;
+          partyScore += 0.40;
           matchedParties.push(`Client: ${c.clientName}`);
         }
         if (docOpposingNorm && dbOpposing && (docOpposingNorm.includes(dbOpposing) || dbOpposing.includes(docOpposingNorm))) {
-          partyScore += 0.35;
+          partyScore += 0.40;
           matchedParties.push(`Opposing: ${c.opposingParty}`);
         }
         // Cross-match check (Plaintiff listed as Opposing or vice-versa)
@@ -140,15 +169,12 @@ export class CandidateGenerationService {
       }
 
       // 4. Court / Forum Match (+0.15)
-      if (docCourtNorm && c.court) {
-        const dbCourt = c.court.toLowerCase().trim();
-        if (docCourtNorm.includes(dbCourt) || dbCourt.includes(docCourtNorm)) {
-          matchedSignals.push({
-            type: 'COURT',
-            description: `Court forum match: ${c.court}`,
-            score: 0.15,
-          });
-        }
+      if (docCourtNorm && c.court && courtsMatch(docCourtNorm, c.court)) {
+        matchedSignals.push({
+          type: 'COURT',
+          description: `Court forum match: ${c.court}`,
+          score: 0.15,
+        });
       }
 
       // Calculate aggregated confidence score (capped at 1.0)

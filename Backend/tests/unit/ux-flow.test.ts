@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { SearchIndexService } from '../../src/services/search/search-index.service.js';
 import { DocumentClassifierService } from '../../src/services/classification/document-classifier.service.js';
+import { DEFAULT_MATCHING_THRESHOLDS } from '../../src/config/matching.config.js';
 
 /**
  * TASK-038 — UX Flow & Boundary Verification Suite
@@ -19,8 +20,8 @@ test('TASK-038 UX Flow & Boundary Verification', async (t) => {
 
   await t.test('2. Match Status & Uncertainty Visibility', () => {
     const determineStatus = (topScore: number, margin: number = 1.0) => {
-      if (topScore >= 0.85 && margin >= 0.15) return 'AUTO_MATCHED';
-      if (topScore >= 0.50) return 'CONFIRMATION_REQUIRED';
+      if (topScore >= DEFAULT_MATCHING_THRESHOLDS.autoMatchConfidence && margin >= DEFAULT_MATCHING_THRESHOLDS.autoMatchScoreMargin) return 'AUTO_MATCHED';
+      if (topScore >= DEFAULT_MATCHING_THRESHOLDS.confirmationConfidence) return 'CONFIRMATION_REQUIRED';
       return 'NO_MATCH';
     };
 

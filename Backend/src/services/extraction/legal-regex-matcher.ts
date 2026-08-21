@@ -115,6 +115,22 @@ export class LegalRegexMatcher {
       }
     }
 
+    // Match single-party notices like "BETWEEN Patel Developers PETITIONER"
+    // (no opposing party listed). Requires the BETWEEN anchor and a negative
+    // lookahead so two-party documents are not double-captured.
+    const singlePartyRegex = /BETWEEN\s*:?\s*([A-Z0-9\s.,]+?)\s+(?:PLAINTIFF|PETITIONER|APPLICANT)(?!\s+(?:AND|VS\.?|VERSUS))/gi;
+
+    while ((match = singlePartyRegex.exec(text)) !== null) {
+      const pName = match[1].trim();
+
+      if (pName && pName.length > 2 && pName.length < 100) {
+        const isDuplicate = plaintiffs.some((p) => p.value.toLowerCase() === pName.toLowerCase());
+        if (!isDuplicate) {
+          plaintiffs.push({ value: pName, confidence: 0.85, patternName: 'SINGLE_PARTY_TITLE' });
+        }
+      }
+    }
+
     return { plaintiffs, defendants };
   }
 

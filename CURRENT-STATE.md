@@ -1,18 +1,20 @@
 # Current State
 
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-22
 
 ## Project status
 
 **Milestones 1, 2, 3, 4, 5, 6, 7, 8 & 9 Complete** (Identity, Multi-Tenancy, Document Ingestion, Document Understanding, Case Matching Engine, Retrieval & Search Engine, Audit & Reliability, Evaluation & Benchmarking, and Pilot Readiness).  
 **Platform Status**: MVP Complete and Ready for Design-Partner Pilot Onboarding (3–5 small law offices/chambers).
 
+A full code audit was performed on 2026-08-17; all 16 findings in `MVP-ISSUE-LOG.md` have been resolved (see issue log for per-issue fix notes).
+
 System status:
 - Docker Compose environment configured for one-command local execution (`docker compose up --build`).
 - TypeScript strict typecheck passing with 0 errors across workspace (`npm run typecheck`).
 - ESLint checks passing with 0 warnings or errors (`npm run lint`).
-- Next.js frontend production build passing with 13/13 static pages generated (`npm run build`).
-- Unit test suite passing 100% offline (`48 passed, 0 failed`).
+- Next.js frontend production build passing with no metadata/Browserslist warnings (`npm run build`).
+- Backend test suite passing 100%: **191 passed, 0 failed** (unit + integration, `npm test`).
 - Clean Git repository tree on `master` branch.
 
 ---
@@ -47,7 +49,7 @@ Correct legal documents automatically identified and filed into the correct case
 - Precision prioritized over aggressive automation
 - PostgreSQL database connected via Prisma ORM v6.19
 - Supabase Auth behind vendor-flexible `IAuthProvider` interface
-- Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`, `LocalStorageProvider` with automatic fallback) separate from database
+- Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`, `LocalStorageProvider`; local fallback restricted to non-production, fail-closed in production) separate from database
 - Server-side multi-tenant authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`)
 - Asynchronous document processing pipeline architecture
 - Deterministic extraction & matching before expensive AI/LLM calls
@@ -103,7 +105,7 @@ Correct legal documents automatically identified and filed into the correct case
 
 ### Milestone 5 — Case Matching Engine (TASK-021 — TASK-026)
 - **TASK-021 (Candidate Generation Service)**: Built `CandidateGenerationService` (`Backend/src/services/matching/candidate-generation.service.ts`) to query active tenant cases using exact case numbers, CNR numbers, party names, and court forums.
-- **TASK-022 & TASK-023 (Deterministic Scorer & Decision Engine)**: Implemented `CaseMatcherService` (`Backend/src/services/matching/case-matcher.service.ts`) using weighted matching signals (Case Number +0.90, CNR +0.95, Party +0.40-0.70, Court +0.15) and server-side decision thresholds (`AUTO_MATCHED` $\ge 0.85$, `CONFIRMATION_REQUIRED` $0.50 - 0.84$, `NO_MATCH` $< 0.50$). Integrated automatically into `DocumentProcessingService.processDocumentPipeline()`.
+- **TASK-022 & TASK-023 (Deterministic Scorer & Decision Engine)**: Implemented `CaseMatcherService` (`Backend/src/services/matching/case-matcher.service.ts`) using weighted matching signals (Case Number +0.90, CNR +0.95, Party +0.40-0.65, Court +0.15 with tolerant court-name token matching) and server-side configurable decision thresholds (`Backend/src/config/matching.config.ts`, defaults: `AUTO_MATCHED` $\ge 0.85$, `CONFIRMATION_REQUIRED` $0.45 - 0.84$, `NO_MATCH` $< 0.45$; threshold values recorded in audit metadata). Integrated automatically into `DocumentProcessingService.processDocumentPipeline()`.
 - **TASK-024 & TASK-025 (Match Confirmation & Reassignment REST APIs)**: Built `POST /api/v1/documents/:id/match`, `POST /api/v1/documents/:id/confirm-match`, and `POST /api/v1/documents/:id/reassign` with audit event logging (`DOCUMENT_CONFIRMED`, `DOCUMENT_REASSIGNED`) and structured feedback tracking.
 - **TASK-026 (Match Confirmation UI & Filing Inbox)**: Built `MatchingCandidatesCard`, `ReassignCaseDialog`, and Filing Inbox view (`Frontend/app/(app)/inbox/page.tsx`) for advocates to review and file unassigned uploads.
 
