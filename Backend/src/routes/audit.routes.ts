@@ -1,8 +1,25 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.middleware.js';
 import { requireTenant, TenantRequest } from '../middleware/tenant.middleware.js';
 import { defaultAuditService } from '../services/audit/audit.service.js';
 import { sendError } from '../utils/api-response.js';
+
+export const auditQuerySchema = z.object({
+  eventType: z.string().optional(),
+  entityType: z.string().optional(),
+  entityId: z.string().optional(),
+  page: z
+    .string()
+    .regex(/^\d+$/, 'page must be a non-negative integer')
+    .transform(Number)
+    .optional(),
+  limit: z
+    .string()
+    .regex(/^\d+$/, 'limit must be a non-negative integer')
+    .transform(Number)
+    .optional(),
+});
 
 export const auditRouter = Router();
 
@@ -23,19 +40,20 @@ auditRouter.get('/', async (req: TenantRequest, res: Response): Promise<void> =>
       return;
     }
 
-    const eventType = typeof req.query.eventType === 'string' ? req.query.eventType : undefined;
-    const entityType = typeof req.query.entityType === 'string' ? req.query.entityType : undefined;
-    const entityId = typeof req.query.entityId === 'string' ? req.query.entityId : undefined;
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 20;
+    const queryResult = auditQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      const issue = queryResult.error.issues[0];
+      sendError(res, issue.message, 400, 'VALIDATION_ERROR');
+      return;
+    }
 
     const result = await defaultAuditService.getAuditLogs({
       organizationId,
-      eventType,
-      entityType,
-      entityId,
-      page,
-      limit,
+      eventType: queryResult.data.eventType,
+      entityType: queryResult.data.entityType,
+      entityId: queryResult.data.entityId,
+      page: Math.max(1, queryResult.data.page ?? 1),
+      limit: Math.min(100, Math.max(1, queryResult.data.limit ?? 20)),
     });
 
     res.json({
