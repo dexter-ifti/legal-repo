@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DocumentUploadDropzone,
@@ -17,18 +17,54 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cases } from '@/lib/mock-data';
+import { useUserProfile } from '@/lib/use-user';
 import { ArrowRight, FileText, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 export default function UploadPage() {
   const router = useRouter();
+  const { user, loading: userLoading } = useUserProfile();
   const [recentUploads, setRecentUploads] = useState<UploadedDocumentResult[]>([]);
+  const [availableCases, setAvailableCases] = useState<CaseOption[]>([]);
 
-  // Map mock cases for optional selection
-  const availableCases: CaseOption[] = cases.map((c) => ({
-    id: c.id,
-    title: c.name,
-    caseNumber: c.caseNumber,
-  }));
+  // Demo users get mock cases; real users get their tenant's cases from the API.
+  useEffect(() => {
+    if (userLoading) return;
+
+    if (user.isDemo) {
+      setAvailableCases(
+        cases.map((c) => ({
+          id: c.id,
+          title: c.name,
+          caseNumber: c.caseNumber,
+        }))
+      );
+      return;
+    }
+
+    const fetchCases = async () => {
+      try {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const res = await fetch(`${API_URL}/api/v1/cases`, {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        });
+        if (res.ok) {
+          const casesData = await res.json();
+          setAvailableCases(
+            (casesData.data?.cases || []).map((caseItem: any) => ({
+              id: caseItem.id,
+              title: caseItem.title,
+              caseNumber: caseItem.caseNumber || null,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error('Failed to fetch cases for upload:', err);
+      }
+    };
+
+    fetchCases();
+  }, [user.isDemo, userLoading]);
 
   const handleUploadSuccess = (doc: UploadedDocumentResult) => {
     setRecentUploads((prev) => [doc, ...prev]);
