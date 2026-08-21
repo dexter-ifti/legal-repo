@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { currentUser as mockCurrentUser } from './mock-data';
-import { DEMO_USER_IDS } from './demo-users';
+import { DEMO_USER_IDS, DEMO_ORGANIZATION_IDS } from './demo-users';
 
 export interface UserProfile {
   id: string;
@@ -21,7 +21,7 @@ export function useUserProfile(): { user: UserProfile; loading: boolean } {
     email: mockCurrentUser.email,
     role: mockCurrentUser.role,
     initials: mockCurrentUser.initials,
-    organizationId: 'org_lexflow_demo',
+    organizationId: DEMO_ORGANIZATION_IDS.lexflowDemo,
     isDemo: true,
   });
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,7 @@ export function useUserProfile(): { user: UserProfile; loading: boolean } {
             email,
             role: parsed.role || (isDemo ? 'Senior Paralegal' : 'Advocate / Lawyer'),
             initials,
-            organizationId: parsed.organizationId || 'org_default',
+            organizationId: parsed.organizationId || DEMO_ORGANIZATION_IDS.default,
             isDemo,
           });
         } catch (e) {

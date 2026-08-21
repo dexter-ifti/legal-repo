@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { MockAuthProvider } from '../../src/auth/MockAuthProvider.js';
 import { SupabaseAuthProvider } from '../../src/auth/SupabaseAuthProvider.js';
-import { DEMO_USERS } from '../../src/auth/demo-users.js';
+import { DEMO_USERS, DEMO_ORGANIZATION_IDS } from '../../src/auth/demo-users.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -87,4 +87,10 @@ test('SupabaseAuthProvider demo token fallback uses valid UUID ids', async (t) =
     const user = await provider.verifyToken('demo-token');
     assert.strictEqual(user.id, DEMO_USERS.sarahMitchell.id);
   });
+});
+
+test('demo organization fallback IDs are valid UUIDs', () => {
+  for (const orgId of Object.values(DEMO_ORGANIZATION_IDS)) {
+    assert.match(orgId, UUID_REGEX);
+  }
 });

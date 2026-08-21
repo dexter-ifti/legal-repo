@@ -22,3 +22,13 @@ export const DEMO_USERS: Record<string, DemoUser> = {
 };
 
 export const demoTokenFor = (userId: string): string => `mock-token-${userId}`;
+
+/**
+ * Deterministic UUIDs for fallback organization contexts.
+ * Organization.id is `Uuid @db.Uuid`, so non-UUID placeholders like
+ * `org_default` would fail Prisma queries when used as tenant context.
+ */
+export const DEMO_ORGANIZATION_IDS = {
+  lexflowDemo: 'c5f3e4d6-7a8b-4c9d-8e0f-2a3b4c5d6e7f',
+  default: 'd6a4f5e7-8b9c-4d0e-9f1a-3b4c5d6e7f8a',
+} as const;

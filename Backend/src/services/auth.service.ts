@@ -1,6 +1,7 @@
 import { IAuthProvider, AuthUser, AuthSession } from '../auth/AuthProvider.js';
 import { SupabaseAuthProvider } from '../auth/SupabaseAuthProvider.js';
 import { MockAuthProvider } from '../auth/MockAuthProvider.js';
+import { DEMO_ORGANIZATION_IDS } from '../auth/demo-users.js';
 import { prisma } from '../db/client.js';
 
 let currentAuthProvider: IAuthProvider;
@@ -33,7 +34,7 @@ export async function registerUser(
   const providerResult = await getAuthProvider().signUp(email, password, name);
   const authUser = providerResult.user;
 
-  let organizationId = 'org_default';
+  let organizationId: string = DEMO_ORGANIZATION_IDS.default;
   let role = 'MEMBER';
   let displayName = name || authUser.name || 'Legal Advocate';
 
@@ -95,7 +96,7 @@ export async function loginUser(
   const providerResult = await getAuthProvider().signIn(email, password);
   const authUser = providerResult.user;
 
-  let organizationId = 'org_default';
+  let organizationId: string = DEMO_ORGANIZATION_IDS.default;
   let role = 'MEMBER';
   let displayName = authUser.name || 'Legal Advocate';
 
@@ -181,6 +182,6 @@ export async function verifyUserToken(token: string): Promise<AuthUser> {
 
   return {
     ...authUser,
-    organizationId: authUser.organizationId || 'org_default',
+    organizationId: authUser.organizationId || DEMO_ORGANIZATION_IDS.default,
   };
 }
