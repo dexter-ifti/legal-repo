@@ -1,21 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
-  Calendar,
   FolderOpen,
   Upload,
   FileText,
-  CheckCircle2,
-  Clock,
   Loader2,
   User,
   Gavel,
   Building2,
-  FileCheck2,
   FileQuestion,
   StickyNote,
 } from 'lucide-react';
@@ -29,55 +25,244 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { StatusBadge, PriorityBadge } from '@/components/shared/status-badge';
+import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { cases, documents } from '@/lib/mock-data';
-import { formatDate, formatFileSize, formatRelativeTime } from '@/lib/format';
+import type { DocStatus } from '@/lib/types';
+import { useUserProfile } from '@/lib/use-user';
+import { formatFileSize, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
+
+interface CaseView {
+  name: string;
+  caseNumber: string;
+  cnrNumber: string;
+  client: string;
+  opposingParty: string;
+  court: string;
+  judge: string;
+  status: string;
+  notes: string;
+}
+
+interface CaseDocView {
+  id: string;
+  title: string;
+  fileType: string;
+  category: string;
+  pageCount: number;
+  fileSize: number;
+  uploadedAt: string;
+  ocrConfidence?: number | null;
+  status: DocStatus;
+}
+
+const docStatusFromMatchStatus = (matchStatus: string | null | undefined): DocStatus => {
+  if (matchStatus === 'AUTO_MATCHED' || matchStatus === 'CONFIRMED') return 'filed';
+  if (matchStatus === 'CONFIRMATION_REQUIRED') return 'review';
+  return 'processing';
+};
 
 export default function CaseDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, loading: userLoading } = useUserProfile();
   const caseId = params.id as string;
   const [activeTab, setActiveTab] = useState('all');
 
-  const rawCaseData = cases.find((c) => c.id === caseId);
+  const [apiCase, setApiCase] = useState<CaseView | null>(null);
+  const [apiDocs, setApiDocs] = useState<CaseDocView[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
-  // Fallback case object when custom created or mocked
-  const caseData = rawCaseData || {
-    id: caseId,
-    name: 'State vs. Rajesh Sharma & Ors.',
-    caseNumber: 'WP/2026/808',
-    cnrNumber: `MHHC0100${caseId.slice(-4).toUpperCase()}2026`,
-    practiceArea: 'Writ Petition / Constitutional',
-    client: 'Rajesh Sharma',
-    opposingParty: 'State of Maharashtra & Anr.',
-    court: 'Bombay High Court',
-    judge: 'Hon. Justice K. R. Vyas',
-    status: 'active',
-    documentCount: 4,
-    filedCount: 2,
-    reviewCount: 1,
-    processingCount: 1,
-    nextHearing: '2026-09-15',
-    notes: 'Interim stay granted on notice. Final arguments scheduled before Division Bench.',
-  };
+  const loadCase = useCallback(async () => {
+    if (user.isDemo) {
+      setIsLoading(false);
+      return;
+    }
 
-  const cnrNumber = (caseData as { cnrNumber?: string }).cnrNumber || `MHHC0100${caseId.slice(-4).toUpperCase()}2026`;
-  const opposingParty = (caseData as { opposingParty?: string }).opposingParty || 'Opposing Counsel';
-  const court = (caseData as { court?: string }).court || 'High Court of Judicature';
-  const judge = (caseData as { judge?: string }).judge || 'Hon. Bench';
-  const notes = (caseData as { notes?: string }).notes || 'No specific notes attached to this legal case.';
+    setIsLoading(true);
+    setNotFound(false);
+    setHasError(false);
 
-  const caseDocs = documents.filter((d) => d.caseId === caseId);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
+      const [caseRes, docsRes] = await Promise.all([
+        fetch(`${API_URL}/api/v1/cases/${caseId}`, { headers }),
+        fetch(`${API_URL}/api/v1/documents`, { headers }),
+      ]);
+
+      if (caseRes.status === 404) {
+        setNotFound(true);
+        return;
+      }
+      if (!caseRes.ok) {
+        setHasError(true);
+        return;
+      }
+
+      const casePayload = await caseRes.json();
+      const c = casePayload.data?.case;
+      if (!c) {
+        setNotFound(true);
+        return;
+      }
+
+      setApiCase({
+        name: c.title || 'Untitled Case',
+        caseNumber: c.caseNumber || 'N/A',
+        cnrNumber: c.cnrNumber || 'N/A',
+        client: c.clientName || 'Unspecified Client',
+        opposingParty: c.opposingParty || 'N/A',
+        court: c.court || 'N/A',
+        judge: c.judge || 'N/A',
+        status: c.status?.toLowerCase() || 'active',
+        notes: c.notes || 'No specific notes attached to this legal case.',
+      });
+
+      if (docsRes.ok) {
+        const docsPayload = await docsRes.json();
+        const allDocs = docsPayload.data || [];
+        setApiDocs(
+          allDocs
+            .filter((d: any) => d.caseId === caseId)
+            .map(
+              (d: any): CaseDocView => ({
+                id: d.id,
+                title: d.originalFilename,
+                fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
+                category: d.documentType || 'UNCLASSIFIED',
+                pageCount: d.pageCount || 1,
+                fileSize: d.fileSize ? Number(d.fileSize) : 0,
+                uploadedAt: d.uploadedAt,
+                ocrConfidence: null,
+                status: docStatusFromMatchStatus(d.matchStatus),
+              })
+            )
+        );
+      }
+    } catch (err) {
+      console.error('Failed to load case detail:', err);
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [caseId, user.isDemo]);
+
+  useEffect(() => {
+    if (!userLoading) {
+      loadCase();
+    }
+  }, [userLoading, loadCase]);
+
+  // Demo mode keeps the mock experience; real users only ever see API data.
+  const usingMock = user.isDemo;
+
+  const rawMockCase = usingMock ? cases.find((c) => c.id === caseId) : undefined;
+  const caseData: CaseView = usingMock
+    ? rawMockCase
+      ? {
+          name: rawMockCase.name,
+          caseNumber: rawMockCase.caseNumber,
+          cnrNumber: 'N/A',
+          client: rawMockCase.client,
+          opposingParty: 'N/A',
+          court: 'N/A',
+          judge: 'N/A',
+          status: rawMockCase.status,
+          notes: 'No specific notes attached to this legal case.',
+        }
+      : {
+          name: 'State vs. Rajesh Sharma & Ors.',
+          caseNumber: 'WP/2026/808',
+          cnrNumber: `MHHC0100${caseId.slice(-4).toUpperCase()}2026`,
+          client: 'Rajesh Sharma',
+          opposingParty: 'State of Maharashtra & Anr.',
+          court: 'Bombay High Court',
+          judge: 'Hon. Justice K. R. Vyas',
+          status: 'active',
+          notes: 'Interim stay granted on notice. Final arguments scheduled before Division Bench.',
+        }
+    : apiCase || {
+        name: '',
+        caseNumber: '',
+        cnrNumber: '',
+        client: '',
+        opposingParty: '',
+        court: '',
+        judge: '',
+        status: 'active',
+        notes: '',
+      };
+
+  const caseDocs: CaseDocView[] = usingMock
+    ? documents
+        .filter((d) => d.caseId === caseId)
+        .map((d) => ({
+          id: d.id,
+          title: d.title,
+          fileType: d.fileType,
+          category: d.category,
+          pageCount: d.pageCount,
+          fileSize: d.fileSize,
+          uploadedAt: d.uploadedAt,
+          ocrConfidence: d.ocrConfidence ?? null,
+          status: d.status,
+        }))
+    : apiDocs;
+
   const filteredDocs =
     activeTab === 'all'
       ? caseDocs
       : caseDocs.filter((d) => d.status === activeTab);
 
-  const completionRate = caseData.documentCount
-    ? Math.round((caseData.filedCount / caseData.documentCount) * 100)
+  const filedCount = caseDocs.filter((d) => d.status === 'filed').length;
+  const reviewCount = caseDocs.filter((d) => d.status === 'review').length;
+  const processingCount = caseDocs.filter((d) => d.status === 'processing').length;
+  const completionRate = caseDocs.length
+    ? Math.round((filedCount / caseDocs.length) * 100)
     : 0;
+
+  if (!usingMock && isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!usingMock && (notFound || hasError)) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6 lg:p-8">
+        <Button variant="ghost" size="sm" onClick={() => router.push('/cases')}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          Back to Cases
+        </Button>
+        <EmptyState
+          icon={FolderOpen}
+          title={notFound ? 'Case not found' : 'Failed to load case'}
+          description={
+            notFound
+              ? 'This case does not exist in your organization or has been deleted.'
+              : 'We could not reach the server. Your data was not changed — please retry.'
+          }
+          action={
+            notFound ? (
+              <Button asChild>
+                <Link href="/cases">Back to Cases</Link>
+              </Button>
+            ) : (
+              <Button onClick={loadCase}>Retry</Button>
+            )
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
@@ -113,7 +298,7 @@ export default function CaseDetailPage() {
               </span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
-              Filing No: <span className="font-medium text-foreground">{caseData.caseNumber}</span> · CNR: <span className="font-mono">{cnrNumber}</span>
+              Filing No: <span className="font-medium text-foreground">{caseData.caseNumber}</span> · CNR: <span className="font-mono">{caseData.cnrNumber}</span>
             </p>
           </div>
         </div>
@@ -128,9 +313,9 @@ export default function CaseDetailPage() {
       {/* Case Metadata Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InfoCard icon={User} label="Client" value={caseData.client} />
-        <InfoCard icon={FileQuestion} label="Opposing Party" value={opposingParty} />
-        <InfoCard icon={Building2} label="Court / Forum" value={court} />
-        <InfoCard icon={Gavel} label="Presiding Judge" value={judge} />
+        <InfoCard icon={FileQuestion} label="Opposing Party" value={caseData.opposingParty} />
+        <InfoCard icon={Building2} label="Court / Forum" value={caseData.court} />
+        <InfoCard icon={Gavel} label="Presiding Judge" value={caseData.judge} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -142,7 +327,7 @@ export default function CaseDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            <p className="whitespace-pre-wrap leading-relaxed">{notes}</p>
+            <p className="whitespace-pre-wrap leading-relaxed">{caseData.notes}</p>
           </CardContent>
         </Card>
 
@@ -163,10 +348,10 @@ export default function CaseDetailPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-2">
-              <div>Total: <span className="font-semibold text-foreground">{caseData.documentCount}</span></div>
-              <div>Filed: <span className="font-semibold text-success">{caseData.filedCount}</span></div>
-              <div>Review: <span className="font-semibold text-warning">{caseData.reviewCount}</span></div>
-              <div>Processing: <span className="font-semibold text-brand">{caseData.processingCount}</span></div>
+              <div>Total: <span className="font-semibold text-foreground">{caseDocs.length}</span></div>
+              <div>Filed: <span className="font-semibold text-success">{filedCount}</span></div>
+              <div>Review: <span className="font-semibold text-warning">{reviewCount}</span></div>
+              <div>Processing: <span className="font-semibold text-brand">{processingCount}</span></div>
             </div>
           </CardContent>
         </Card>
@@ -184,9 +369,9 @@ export default function CaseDetailPage() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="all">All ({caseDocs.length})</TabsTrigger>
-              <TabsTrigger value="review">Review ({caseData.reviewCount})</TabsTrigger>
-              <TabsTrigger value="filed">Filed ({caseData.filedCount})</TabsTrigger>
-              <TabsTrigger value="processing">Processing ({caseData.processingCount})</TabsTrigger>
+              <TabsTrigger value="review">Review ({reviewCount})</TabsTrigger>
+              <TabsTrigger value="filed">Filed ({filedCount})</TabsTrigger>
+              <TabsTrigger value="processing">Processing ({processingCount})</TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-0">
@@ -224,12 +409,11 @@ export default function CaseDetailPage() {
                         </p>
                       </div>
                       <div className="hidden items-center gap-2 sm:flex">
-                        {doc.ocrConfidence && (
+                        {doc.ocrConfidence != null && (
                           <Badge variant="outline" className="text-xs">
                             {doc.ocrConfidence}% OCR
                           </Badge>
                         )}
-                        <PriorityBadge priority={doc.priority} />
                       </div>
                       <StatusBadge status={doc.status} />
                     </Link>
