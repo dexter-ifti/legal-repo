@@ -1,6 +1,38 @@
 import { Response } from 'express';
 import { ApiSuccessResponse, ApiErrorResponse, ApiResponseMeta, ApiErrorDetail } from '../types/api.js';
 
+export function serializeForJson<T>(value: T): T {
+  if (typeof value === 'bigint') {
+    const asNumber = Number(value);
+    return (Number.isSafeInteger(asNumber) ? asNumber : value.toString()) as T;
+  }
+
+  if (value instanceof Date) {
+    return value as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeForJson(item)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    const maybeDecimal = value as { constructor?: { name?: string }; toNumber?: () => number; toString?: () => string };
+    if (maybeDecimal.constructor?.name === 'Decimal' && typeof maybeDecimal.toNumber === 'function') {
+      const asNumber = maybeDecimal.toNumber();
+      return (Number.isFinite(asNumber) ? asNumber : maybeDecimal.toString?.()) as T;
+    }
+
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nestedValue]) => [
+        key,
+        serializeForJson(nestedValue),
+      ])
+    ) as T;
+  }
+
+  return value;
+}
+
 export function sendSuccess<T>(
   res: Response,
   data: T,
@@ -9,7 +41,7 @@ export function sendSuccess<T>(
 ): Response {
   const payload: ApiSuccessResponse<T> = {
     success: true,
-    data,
+    data: serializeForJson(data),
     ...(meta ? { meta } : {}),
     timestamp: new Date().toISOString(),
   };

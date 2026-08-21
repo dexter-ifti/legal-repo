@@ -89,7 +89,7 @@ export default function DashboardPage() {
     ? dashboardStats.filedDocuments
     : realDocs.filter(
         (d) =>
-          d.matchStatus === 'AUTO_MATCH' ||
+          d.matchStatus === 'AUTO_MATCHED' ||
           d.matchStatus === 'CONFIRMED' ||
           d.status === 'filed'
       ).length;
@@ -108,7 +108,7 @@ export default function DashboardPage() {
     caseName: d.case?.title || 'Unassigned Case',
     fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
     uploadedAt: d.uploadedAt || new Date().toISOString(),
-    status: (d.matchStatus === 'AUTO_MATCH' || d.matchStatus === 'CONFIRMED'
+    status: (d.matchStatus === 'AUTO_MATCHED' || d.matchStatus === 'CONFIRMED'
       ? 'filed'
       : d.matchStatus === 'CONFIRMATION_REQUIRED'
       ? 'review'

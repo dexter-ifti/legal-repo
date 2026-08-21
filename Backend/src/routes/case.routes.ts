@@ -72,7 +72,7 @@ router.post('/', authenticateToken, requireTenant, async (req: TenantRequest, re
     }
 
     const createdCase = await createCase(req.organizationId, req.user.id, parseResult.data);
-    return sendSuccess(res, { case: createdCase }, 201);
+    return sendSuccess(res, { ...createdCase, case: createdCase }, 201);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to create case';
     return sendError(res, message, 500, 'CASE_CREATE_FAILED');

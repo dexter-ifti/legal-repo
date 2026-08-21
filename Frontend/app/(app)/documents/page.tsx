@@ -53,7 +53,7 @@ export default function DocumentsPage() {
                 pageCount: 1,
                 uploadedAt: d.uploadedAt || new Date().toISOString(),
                 status:
-                  d.matchStatus === 'AUTO_MATCH' || d.matchStatus === 'CONFIRMED'
+                  d.matchStatus === 'AUTO_MATCHED' || d.matchStatus === 'CONFIRMED'
                     ? 'filed'
                     : d.matchStatus === 'CONFIRMATION_REQUIRED'
                     ? 'review'
@@ -72,7 +72,7 @@ export default function DocumentsPage() {
         })
         .catch((err) => {
           console.warn('Error fetching real documents:', err);
-          setDocList(documents);
+          setDocList(user.isDemo ? documents : []);
         })
         .finally(() => setLoading(false));
     }

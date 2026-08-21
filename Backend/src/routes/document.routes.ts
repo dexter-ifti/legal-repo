@@ -103,15 +103,6 @@ router.get(
           include: { case: true, uploader: true },
           orderBy: { uploadedAt: 'desc' },
         });
-
-        // Fallback: If no docs match organizationId specifically, retrieve all recent documents
-        if (docs.length === 0) {
-          docs = await prisma.document.findMany({
-            include: { case: true, uploader: true },
-            orderBy: { uploadedAt: 'desc' },
-            take: 50,
-          });
-        }
       } catch (dbErr) {
         console.warn('[DocumentRoutes] DB query warning in GET /api/v1/documents:', dbErr instanceof Error ? dbErr.message : dbErr);
       }

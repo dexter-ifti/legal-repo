@@ -28,6 +28,14 @@ const getFallbackProvider = (): LocalStorageProvider => {
   return fallbackProviderInstance;
 };
 
+const canUseLocalStorageFallback = (): boolean =>
+  process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_STORAGE_FALLBACK === 'true';
+
+const throwStorageFailure = (operation: string, err: unknown): never => {
+  const errorMsg = err instanceof Error ? err.message : String(err);
+  throw new Error(`${operation} failed on configured storage provider: ${errorMsg}`);
+};
+
 /**
  * Override the active storage provider (useful for testing or switching drivers at runtime).
  */
@@ -45,6 +53,10 @@ export const uploadStorageObject = async (options: Parameters<IStorageProvider['
     return await provider.uploadFile(options);
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    if (!canUseLocalStorageFallback()) {
+      throwStorageFailure('Storage upload', err);
+    }
+
     console.warn(`[StorageService] Primary storage upload failed: ${errorMsg}. Falling back to LocalStorageProvider.`);
     return await getFallbackProvider().uploadFile(options);
   }
@@ -58,6 +70,10 @@ export const getStorageSignedUrl = async (storageKey: string, expiresInSeconds?:
   try {
     return await provider.getSignedUrl(storageKey, expiresInSeconds);
   } catch (err: unknown) {
+    if (!canUseLocalStorageFallback()) {
+      throwStorageFailure('Storage signed URL generation', err);
+    }
+
     console.warn(`[StorageService] Primary getSignedUrl failed for ${storageKey}. Attempting fallback.`);
     return await getFallbackProvider().getSignedUrl(storageKey, expiresInSeconds);
   }
@@ -71,6 +87,10 @@ export const deleteStorageObject = async (storageKey: string) => {
   try {
     return await provider.deleteFile(storageKey);
   } catch (err: unknown) {
+    if (!canUseLocalStorageFallback()) {
+      throwStorageFailure('Storage deletion', err);
+    }
+
     return await getFallbackProvider().deleteFile(storageKey);
   }
 };
@@ -83,6 +103,10 @@ export const getStorageFileBuffer = async (storageKey: string) => {
   try {
     return await provider.getFileBuffer(storageKey);
   } catch (err: unknown) {
+    if (!canUseLocalStorageFallback()) {
+      throwStorageFailure('Storage file retrieval', err);
+    }
+
     console.warn(`[StorageService] Primary getFileBuffer failed for ${storageKey}. Attempting fallback.`);
     return await getFallbackProvider().getFileBuffer(storageKey);
   }

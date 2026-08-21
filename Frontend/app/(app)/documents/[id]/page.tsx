@@ -93,7 +93,7 @@ export default function DocumentViewerPage() {
             uploadedAt: apiDoc.uploadedAt || new Date().toISOString(),
             uploadedBy: apiDoc.uploader?.name || apiDoc.uploadedBy || 'Legal Advocate',
             status:
-              apiDoc.matchStatus === 'CONFIRMED' || apiDoc.matchStatus === 'AUTO_MATCH'
+              apiDoc.matchStatus === 'CONFIRMED' || apiDoc.matchStatus === 'AUTO_MATCHED'
                 ? 'filed'
                 : apiDoc.matchStatus === 'CONFIRMATION_REQUIRED'
                 ? 'review'

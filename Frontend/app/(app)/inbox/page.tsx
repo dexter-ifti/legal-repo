@@ -64,7 +64,13 @@ export default function FilingInboxPage() {
       }
       if (casesRes.ok) {
         const casesData = await casesRes.json();
-        setAvailableCases(casesData.data || []);
+        setAvailableCases(
+          (casesData.data?.cases || []).map((caseItem: any) => ({
+            id: caseItem.id,
+            title: caseItem.title,
+            caseNumber: caseItem.caseNumber || null,
+          }))
+        );
       }
     } catch (err: unknown) {
       console.error('Failed to fetch inbox items:', err);

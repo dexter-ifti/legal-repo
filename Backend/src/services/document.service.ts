@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { prisma } from '../db/client.js';
 import { buildTenantWhereClause, assertTenantOwnership } from '../utils/authorization.js';
-import { uploadStorageObject } from '../storage/storage.service.js';
+import { deleteStorageObject, uploadStorageObject } from '../storage/storage.service.js';
 
 export interface UploadDocumentOptions {
   organizationId: string;
@@ -69,16 +69,15 @@ export class DocumentService {
 
     // 1. If caseId is provided, verify case belongs to the requesting organization
     if (caseId) {
-      try {
-        const legalCase = await prisma.case.findFirst({
-          where: buildTenantWhereClause(organizationId, { id: caseId }),
-        });
-        if (legalCase) {
-          assertTenantOwnership(legalCase.organizationId, organizationId);
-        }
-      } catch (err) {
-        console.warn('[DocumentService] Case verification warning:', err);
+      const legalCase = await prisma.case.findFirst({
+        where: buildTenantWhereClause(organizationId, { id: caseId }),
+      });
+
+      if (!legalCase) {
+        throw new Error('Target case not found in organization');
       }
+
+      assertTenantOwnership(legalCase.organizationId, organizationId);
     }
 
     // 2. Compute SHA-256 hex checksum
@@ -156,30 +155,15 @@ export class DocumentService {
         isDuplicate: false,
       };
     } catch (dbCreateErr) {
-      console.warn('[DocumentService] DB create failed, returning fallback document:', dbCreateErr instanceof Error ? dbCreateErr.message : dbCreateErr);
-      
-      const fallbackDoc = {
-        id: `doc_${crypto.randomUUID()}`,
-        organizationId,
-        caseId: caseId || null,
-        originalFilename,
-        systemFilename: storageRef.fileName,
-        storageKey: storageRef.storageKey,
-        mimeType,
-        fileSize: BigInt(fileBuffer.length),
-        sha256: sha256Hex,
-        documentType: documentType || 'UNCLASSIFIED',
-        processingStatus: 'UPLOADED',
-        matchStatus: 'NOT_STARTED',
-        uploadedBy,
-        uploadedAt: new Date(),
-        updatedAt: new Date(),
-      };
+      await deleteStorageObject(storageRef.storageKey).catch((cleanupErr) => {
+        console.warn(
+          '[DocumentService] Failed to clean up storage object after DB create failure:',
+          cleanupErr instanceof Error ? cleanupErr.message : cleanupErr
+        );
+      });
 
-      return {
-        document: fallbackDoc,
-        isDuplicate: false,
-      };
+      const message = dbCreateErr instanceof Error ? dbCreateErr.message : 'Unknown database error';
+      throw new Error(`Failed to persist document record: ${message}`);
     }
   }
 
