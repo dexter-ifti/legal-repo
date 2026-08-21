@@ -1,6 +1,7 @@
 import { prisma } from '../../db/client.js';
 import { buildTenantWhereClause, assertTenantOwnership, TenantAccessDeniedError } from '../../utils/authorization.js';
 import { defaultCandidateGenerationService, CandidateGenerationService, CaseCandidate, DocumentSignals } from './candidate-generation.service.js';
+import { getMatchingThresholds } from '../../config/matching.config.js';
 import { MatchStatus, ProcessingStatus } from '@prisma/client';
 
 export interface MatchingResult {
@@ -62,19 +63,21 @@ export class CaseMatcherService {
 
       const scoreMargin = secondCandidate ? topCandidate.totalScore - secondCandidate.totalScore : 1.0;
 
-      // Decision Thresholds
-      if (topCandidate.totalScore >= 0.85 && scoreMargin >= 0.15) {
+      // Decision thresholds come from server-side config (see src/config/matching.config.ts)
+      const thresholds = getMatchingThresholds();
+
+      if (topCandidate.totalScore >= thresholds.autoMatchConfidence && scoreMargin >= thresholds.autoMatchScoreMargin) {
         // High confidence single match -> AUTO_MATCHED
         matchStatus = MatchStatus.AUTO_MATCHED;
         matchedCaseId = topCandidate.caseId;
         processingStatus = ProcessingStatus.FILED;
-      } else if (topCandidate.totalScore >= 0.50) {
+      } else if (topCandidate.totalScore >= thresholds.confirmationConfidence) {
         // Medium confidence or close tie -> CONFIRMATION_REQUIRED
         matchStatus = MatchStatus.CONFIRMATION_REQUIRED;
         matchedCaseId = null;
         processingStatus = ProcessingStatus.AWAITING_CONFIRMATION;
       } else {
-        // Low confidence (<0.50) -> NO_MATCH
+        // Low confidence -> NO_MATCH
         matchStatus = MatchStatus.NO_MATCH;
         matchedCaseId = null;
         processingStatus = ProcessingStatus.MATCHING;
@@ -127,6 +130,7 @@ export class CaseMatcherService {
           matchConfidence,
           matchedCaseId,
           candidateCount: candidates.length,
+          thresholds: { ...getMatchingThresholds() },
         },
       },
     });

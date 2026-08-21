@@ -222,6 +222,8 @@ Suggested fix:
 
 ### 14. Matching thresholds are hard-coded in service despite docs warning against fixed thresholds
 
+> **Status: FIXED (2026-08-21)** — Thresholds moved to `Backend/src/config/matching.config.ts` (`getMatchingThresholds()`), configurable via `MATCHING_AUTO_CONFIDENCE`, `MATCHING_AUTO_SCORE_MARGIN`, and `MATCHING_CONFIRMATION_CONFIDENCE`. Conservative defaults (0.85 / 0.15 / 0.50) are unchanged; invalid or inverted env values degrade safely to defaults with a warning. The resolved threshold values are now recorded in the `DOCUMENT_MATCHED` audit event metadata for evaluation. Unit tests added in `Backend/tests/unit/matching-config.test.ts`.
+
 Evidence:
 - Matching thresholds are hard-coded at `0.85` and `0.50` in [Backend/src/services/matching/case-matcher.service.ts](/home/Code/Projects/36-legal-saas/Backend/src/services/matching/case-matcher.service.ts:65).
 - Project instructions say not to hard-code final confidence thresholds without evaluation data.
