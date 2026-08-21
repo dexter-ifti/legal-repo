@@ -54,37 +54,40 @@ const activityIconMap = {
 };
 
 export default function DashboardPage() {
-  const { user } = useUserProfile();
+  const { user, loading: userLoading } = useUserProfile();
   const [realDocs, setRealDocs] = useState<any[]>([]);
   const [realCases, setRealCases] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      setLoading(true);
-
-      Promise.all([
-        fetch(`${baseUrl}/api/v1/documents`, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        }).then((res) => (res.ok ? res.json() : null)),
-        fetch(`${baseUrl}/api/v1/cases`, {
-          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        }).then((res) => (res.ok ? res.json() : null)),
-      ])
-        .then(([docRes, caseRes]) => {
-          if (docRes?.data) setRealDocs(docRes.data);
-          if (caseRes?.data?.cases) setRealCases(caseRes.data.cases);
-        })
-        .catch((err) => console.warn('Error fetching dashboard real data:', err))
-        .finally(() => setLoading(false));
+    // Demo users see synthetic demo data only; never mix it with tenant records.
+    if (userLoading || user.isDemo || typeof window === 'undefined') {
+      return;
     }
-  }, []);
+
+    const token = localStorage.getItem('token');
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    setLoading(true);
+
+    Promise.all([
+      fetch(`${baseUrl}/api/v1/documents`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      }).then((res) => (res.ok ? res.json() : null)),
+      fetch(`${baseUrl}/api/v1/cases`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      }).then((res) => (res.ok ? res.json() : null)),
+    ])
+      .then(([docRes, caseRes]) => {
+        if (docRes?.data) setRealDocs(docRes.data);
+        if (caseRes?.data?.cases) setRealCases(caseRes.data.cases);
+      })
+      .catch((err) => console.warn('Error fetching dashboard real data:', err))
+      .finally(() => setLoading(false));
+  }, [user.isDemo, userLoading]);
 
   const isDemo = user.isDemo;
 
-  const totalDocCount = isDemo ? dashboardStats.totalDocuments + realDocs.length : realDocs.length;
+  const totalDocCount = isDemo ? dashboardStats.totalDocuments : realDocs.length;
   const filedDocCount = isDemo
     ? dashboardStats.filedDocuments
     : realDocs.filter(

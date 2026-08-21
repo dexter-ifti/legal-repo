@@ -98,6 +98,8 @@ Suggested fix:
 
 ### 6. Demo auth user uses invalid UUID IDs
 
+> **Status: FIXED (2026-08-21)** — Demo users now use deterministic, Prisma-safe UUIDs defined in `Backend/src/auth/demo-users.ts` (`DEMO_USERS`), used by both `MockAuthProvider` and `SupabaseAuthProvider` (including the legacy `demo-token` and dev-fallback paths). Tokens are derived as `mock-token-${uuid}` instead of `mock-token-usr_sarah`. Frontend fallback IDs in `Frontend/lib/use-user.ts` now use matching deterministic UUIDs via `Frontend/lib/demo-users.ts`. Non-UUID organization fallbacks (`org_default`, `org_lexflow_demo`) were also replaced with deterministic UUIDs (`DEMO_ORGANIZATION_IDS`) in `Backend/src/services/auth.service.ts` and `Frontend/lib/use-user.ts`. Unit tests added in `Backend/tests/unit/auth.test.ts`.
+
 Evidence:
 - Demo login path returns `id: 'usr_sarah'` and token `mock-token-usr_sarah` in [Backend/src/auth/MockAuthProvider.ts](/home/Code/Projects/36-legal-saas/Backend/src/auth/MockAuthProvider.ts:28).
 - Prisma user IDs are UUIDs in [Backend/prisma/schema.prisma](/home/Code/Projects/36-legal-saas/Backend/prisma/schema.prisma:56).
@@ -125,6 +127,8 @@ Suggested fix:
 - Prefer shared API types or a small status mapping utility with tests.
 
 ### 8. Upload page passes mock case IDs to the real upload API
+
+> **Status: FIXED (2026-08-21)** — `Frontend/app/(app)/upload/page.tsx` now gates case options on demo mode via `useUserProfile()`: demo users keep mock cases, real users get their tenant's cases from `GET /api/v1/cases` (mapped to `{ id, title, caseNumber }`, same pattern as the Filing Inbox). On API failure real users get an empty list — no mock fallback.
 
 Evidence:
 - Upload page builds `availableCases` from `mock-data` in [Frontend/app/(app)/upload/page.tsx](/home/Code/Projects/36-legal-saas/Frontend/app/(app)/upload/page.tsx:19).
@@ -157,6 +161,8 @@ Suggested fix:
 
 ### 10. Case detail page is mock-only and does not load real case data
 
+> **Status: FIXED (2026-08-21)** — `Frontend/app/(app)/cases/[id]/page.tsx` now fetches `GET /api/v1/cases/:id` plus tenant documents from `GET /api/v1/documents` (filtered by `caseId`) for non-demo users, using the same Bearer-token pattern as the rest of the app. Case metadata is mapped from backend fields (`title`, `clientName`, etc.) with neutral placeholders instead of fabricated legal facts; document counts/status tabs are derived from real `matchStatus` values (`AUTO_MATCHED`/`CONFIRMED` → filed, `CONFIRMATION_REQUIRED` → review). Not-found and API-failure states render honest empty states with retry — no fabricated fallback data for real users. Mock behavior is now gated behind demo mode only.
+
 Evidence:
 - Case detail page only searches `mock-data`, then fabricates fallback case details in [Frontend/app/(app)/cases/[id]/page.tsx](/home/Code/Projects/36-legal-saas/Frontend/app/(app)/cases/[id]/page.tsx:44).
 
@@ -169,6 +175,8 @@ Suggested fix:
 - Render empty/error states instead of fabricated legal facts.
 
 ### 11. Frontend silently falls back to mock data on API failure
+
+> **Status: FIXED (2026-08-21)** — Documents page no longer falls back to mock documents on fetch error (real users get an empty list; demo users keep demo data). Dashboard now skips API fetching entirely for demo users and no longer mixes mock stats with real records (`totalDocCount` is either demo stats or real count, never both). Real users see zero/empty states on failure instead of synthetic data.
 
 Evidence:
 - Documents page falls back to mock documents on fetch error in [Frontend/app/(app)/documents/page.tsx](/home/Code/Projects/36-legal-saas/Frontend/app/(app)/documents/page.tsx:73).
