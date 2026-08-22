@@ -1,5 +1,6 @@
 import pdfParseModule from 'pdf-parse';
 import { ITextExtractor, TextExtractionResult } from './text-extractor.interface.js';
+import { stripInvalidTextChars } from '../../utils/text-sanitizer.js';
 
 // Compatible CJS function resolution across tsc and tsx runtime
 const parsePdf: (buffer: Buffer) => Promise<{ text: string; numpages: number; info?: Record<string, unknown> }> =
@@ -23,7 +24,9 @@ export class PdfTextExtractorService implements ITextExtractor {
 
     try {
       const data = await parsePdf(pdfBuffer);
-      const text = (data.text || '').trim();
+      // Binary PDF content can leak NUL/control bytes into extracted text,
+      // which PostgreSQL TEXT columns reject (error 22021).
+      const text = stripInvalidTextChars((data.text || '').trim());
       const pageCount = data.numpages || 1;
 
       // If extracted text contains minimal characters, flag as potentially scanned
@@ -42,7 +45,7 @@ export class PdfTextExtractorService implements ITextExtractor {
         const lines = rawString
           .split('\n')
           .filter((line) => !line.startsWith('%') && !line.includes('obj') && !line.includes('endobj'));
-        const fallbackText = lines.join(' ').trim();
+        const fallbackText = stripInvalidTextChars(lines.join(' ').trim());
 
         return {
           text: fallbackText,
@@ -61,5 +64,4 @@ export class PdfTextExtractorService implements ITextExtractor {
     }
   }
 }
-
 export const defaultPdfTextExtractor = new PdfTextExtractorService();

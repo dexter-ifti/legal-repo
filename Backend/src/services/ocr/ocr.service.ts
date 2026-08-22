@@ -1,5 +1,6 @@
 import { IOcrProvider, OcrResult, OcrOptions } from './ocr-provider.interface.js';
 import { sliceFirstPages } from './pdf-page-slicer.service.js';
+import { stripInvalidTextChars } from '../../utils/text-sanitizer.js';
 
 /**
  * Mock OCR provider for deterministic local testing and fallback.
@@ -19,11 +20,13 @@ export class MockOcrProvider implements IOcrProvider {
     const raw = pdfBuffer.toString('utf-8');
     // If raw buffer has text content, return parsed text
     if (raw.includes('HIGH COURT') || raw.includes('SUIT') || raw.includes('ORDER')) {
-      const cleanText = raw
-        .split('\n')
-        .filter((line) => !line.startsWith('%') && !line.includes('obj'))
-        .join(' ')
-        .trim();
+      const cleanText = stripInvalidTextChars(
+        raw
+          .split('\n')
+          .filter((line) => !line.startsWith('%') && !line.includes('obj'))
+          .join(' ')
+          .trim()
+      );
       return {
         text: cleanText || 'HIGH COURT OF JUDICATURE AT BOMBAY COMMERCIAL SUIT NO. 1024 OF 2026',
         confidence: 0.95,
@@ -99,8 +102,9 @@ export class MistralOcrProvider implements IOcrProvider {
         pages?: Array<{ markdown?: string; text?: string }>;
       };
 
-      const extractedText =
-        data.pages?.map((p) => p.markdown || p.text || '').join('\n\n') || '';
+      const extractedText = stripInvalidTextChars(
+        data.pages?.map((p) => p.markdown || p.text || '').join('\n\n') || ''
+      );
       const pageCount = data.pages?.length || 1;
 
       return {
