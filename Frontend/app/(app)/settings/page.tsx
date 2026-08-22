@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useUserProfile } from '@/lib/use-user';
+import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 
 interface OrgMember {
@@ -506,7 +507,7 @@ function OrganizationSettings() {
       </Card>
 
       {/* Invite members (Admin only) */}
-      {isAdmin && <InviteMemberCard onMemberJoined={loadOrganization} />}
+      {isAdmin && <InviteMemberCard />}
 
       {/* Members & roles */}
       <Card>
@@ -577,7 +578,16 @@ function OrganizationSettings() {
   );
 }
 
-function InviteMemberCard({ onMemberJoined }: { onMemberJoined: () => void }) {
+interface OrgInvite {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+  createdAt?: string;
+}
+
+function InviteMemberCard() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   const [inviteEmail, setInviteEmail] = useState('');
@@ -586,28 +596,54 @@ function InviteMemberCard({ onMemberJoined }: { onMemberJoined: () => void }) {
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [copied, setCopied] = useState(false);
+  const [invites, setInvites] = useState<OrgInvite[]>([]);
+  const [invitesLoading, setInvitesLoading] = useState(true);
+
+  const authHeaders = useCallback((): Record<string, string> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
+
+  const loadInvites = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/v1/organizations/me/invites`, {
+        headers: authHeaders(),
+      });
+      if (res.ok) {
+        const body = await res.json();
+        setInvites(body.data?.invites || []);
+      }
+    } catch (err: unknown) {
+      console.error('Failed to load invites:', err);
+    } finally {
+      setInvitesLoading(false);
+    }
+  }, [API_URL, authHeaders]);
+
+  useEffect(() => {
+    loadInvites();
+  }, [loadInvites]);
 
   const generateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setGenerating(true);
     setCopied(false);
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`${API_URL}/api/v1/organizations/me/invites`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       });
       const body = await res.json().catch(() => null);
       if (!res.ok) throw new Error(body?.error?.message || 'Failed to create invite');
 
+      // Keep the link on screen — do NOT reload the section here, otherwise
+      // this card unmounts and the user loses the link before copying it.
       setGeneratedLink(body.data.inviteUrl);
       setGeneratedEmail(body.data.invite.email);
-      toast.success('Invite link generated');
-      onMemberJoined();
+      toast.success('Invite link generated — copy it now.');
+      setInviteEmail('');
+      loadInvites();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to create invite');
     } finally {
@@ -695,6 +731,62 @@ function InviteMemberCard({ onMemberJoined }: { onMemberJoined: () => void }) {
             </div>
           </div>
         )}
+
+        {/* Pending / recent invites */}
+        <Separator />
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-foreground">Invites</p>
+          {invitesLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : invites.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+              No invites yet. Generate a link above to invite your first teammate.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {invites.map((invite) => {
+                const isPending = invite.status === 'PENDING';
+                const isExpired = isPending && new Date(invite.expiresAt).getTime() <= Date.now();
+                return (
+                  <div
+                    key={invite.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{invite.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {isPending
+                          ? isExpired
+                            ? 'Expired'
+                            : `Expires ${formatDate(invite.expiresAt)}`
+                          : invite.status === 'ACCEPTED'
+                          ? 'Accepted'
+                          : 'Revoked'}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {invite.role.toLowerCase()}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${
+                          isPending && !isExpired
+                            ? 'border-warning/40 text-warning'
+                            : 'border-neutral/30 text-muted-foreground'
+                        }`}
+                      >
+                        {isPending && isExpired ? 'EXPIRED' : invite.status}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

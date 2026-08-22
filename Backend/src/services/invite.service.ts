@@ -68,6 +68,18 @@ export async function createInvite(
   return { invite, inviteUrl: buildInviteUrl(invite.token) };
 }
 
+/**
+ * Lists an organization's invites, newest first. Used by the Admin
+ * dashboard to show which links are pending, accepted, or revoked.
+ */
+export async function listOrganizationInvites(organizationId: string): Promise<Invite[]> {
+  return prisma.invite.findMany({
+    where: { organizationId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+}
+
 export interface ValidatedInvite {
   valid: boolean;
   reason?: 'NOT_FOUND' | 'REVOKED' | 'EXPIRED' | 'ALREADY_ACCEPTED';

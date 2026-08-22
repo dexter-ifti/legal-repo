@@ -9,7 +9,7 @@ import {
   getOrganizationMembers,
   updateMemberRole,
 } from '../services/organization.service.js';
-import { createInvite, InviteUrlConfigError } from '../services/invite.service.js';
+import { createInvite, listOrganizationInvites, InviteUrlConfigError } from '../services/invite.service.js';
 import { sendSuccess, sendError } from '../utils/api-response.js';
 
 const router = Router();
@@ -208,6 +208,31 @@ router.post(
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create invite';
       return sendError(res, message, 500, 'INVITE_CREATE_FAILED');
+    }
+  }
+);
+
+/**
+ * GET /api/v1/organizations/me/invites
+ * ADMIN-only. Lists the tenant's invites (newest first) so the dashboard
+ * can show pending links.
+ */
+router.get(
+  '/me/invites',
+  authenticateToken,
+  requireTenant,
+  requireRole('ADMIN'),
+  async (req: TenantRequest, res: Response) => {
+    try {
+      if (!req.organizationId) {
+        return sendError(res, 'Organization identity missing', 403, 'TENANT_REQUIRED');
+      }
+
+      const invites = await listOrganizationInvites(req.organizationId);
+      return sendSuccess(res, { invites }, 200);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to list invites';
+      return sendError(res, message, 500, 'INVITE_LIST_FAILED');
     }
   }
 );
