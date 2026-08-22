@@ -49,7 +49,7 @@ Correct legal documents automatically identified and filed into the correct case
 - Precision prioritized over aggressive automation
 - PostgreSQL database connected via Prisma ORM v6.19
 - Supabase Auth behind vendor-flexible `IAuthProvider` interface
-- Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`, `LocalStorageProvider`; local fallback restricted to non-production, fail-closed in production) separate from database
+- Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`) — cloud-only; local disk storage is not supported and all storage operations fail closed separate from database
 - Server-side multi-tenant authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`)
 - Asynchronous document processing pipeline architecture
 - Deterministic extraction & matching before expensive AI/LLM calls
@@ -74,7 +74,7 @@ Correct legal documents automatically identified and filed into the correct case
 ### Milestone 3 — Document Ingestion (TASK-012 — TASK-015)
 - `Document` domain model with `caseId: null` support (Upload First), checksum storage, and status lifecycles (`processingStatus`, `matchStatus`).
 - Multer file upload middleware with 50MB limit and PDF magic byte header validation (`%PDF-`).
-- Private Object Storage Abstraction (`storage.service`, `LocalStorageProvider`).
+- Private Cloud Object Storage Abstraction (`storage.service`, `SupabaseStorageProvider`; cloud-only, fail-closed).
 - PDF Upload REST API (`POST /api/v1/documents/upload`, `GET /api/v1/documents/:id`).
 - Tenant-scoped SHA-256 deduplication and hash pre-check REST API (`GET /api/v1/documents/by-hash/:sha256`).
 - Upload First UI (`Frontend/components/documents/document-upload-dropzone.tsx`, `Frontend/app/(app)/upload/page.tsx`) with drag & drop, live progress tracking, and duplicate document alert cards.

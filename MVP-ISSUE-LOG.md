@@ -92,7 +92,7 @@ Suggested fix:
 
 ### 5. Storage provider silently falls back from Supabase to local disk
 
-> **Status: FIXED (2026-08-21)** — `Backend/src/storage/storage.service.ts` now gates the `LocalStorageProvider` fallback behind `canUseLocalStorageFallback()` (allowed only when `NODE_ENV !== 'production'` or `ALLOW_LOCAL_STORAGE_FALLBACK === 'true'`). In production all four operations (upload, signed URL, delete, buffer read) fail closed with a retryable storage error; failure metadata is logged without document contents.
+> **Status: FIXED (2026-08-21; superseded 2026-08-22)** — Initially the `LocalStorageProvider` fallback was gated behind non-production env (`canUseLocalStorageFallback()`). On 2026-08-22 local disk storage support was removed entirely per product decision: `LocalStorageProvider` was deleted, `storage.service.ts` now uses Supabase Storage only and fails closed on any storage error, and `SupabaseStorageProvider` throws a clear configuration error when Supabase credentials are missing. Tenant key building was extracted to a shared, unit-tested helper (`storage-keys.ts`).
 
 Evidence:
 - `uploadStorageObject`, `getStorageSignedUrl`, `deleteStorageObject`, and `getStorageFileBuffer` fall back to `LocalStorageProvider` on primary provider failure in [Backend/src/storage/storage.service.ts](/home/Code/Projects/36-legal-saas/Backend/src/storage/storage.service.ts:42).

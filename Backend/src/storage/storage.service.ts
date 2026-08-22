@@ -1,39 +1,29 @@
 import { IStorageProvider } from './StorageProvider.js';
-import { LocalStorageProvider } from './LocalStorageProvider.js';
 import { SupabaseStorageProvider } from './SupabaseStorageProvider.js';
 
 let activeProviderInstance: IStorageProvider | null = null;
-let fallbackProviderInstance: LocalStorageProvider | null = null;
 
+/**
+ * Returns the configured cloud storage provider (Supabase Storage).
+ * Local disk storage is not supported: all legal documents must be
+ * stored in private cloud object storage.
+ */
 export const getStorageProvider = (): IStorageProvider => {
   if (activeProviderInstance) {
     return activeProviderInstance;
   }
 
-  const providerType = (process.env.STORAGE_PROVIDER || 'local').toLowerCase();
-
-  if (providerType === 'supabase') {
-    activeProviderInstance = new SupabaseStorageProvider();
-  } else {
-    activeProviderInstance = new LocalStorageProvider();
+  const providerType = (process.env.STORAGE_PROVIDER || 'supabase').toLowerCase();
+  if (providerType !== 'supabase') {
+    throw new Error(
+      `Unsupported STORAGE_PROVIDER "${providerType}". Only Supabase Storage ("supabase") is supported.`
+    );
   }
+
+  // Throws a clear configuration error if Supabase env vars are missing.
+  activeProviderInstance = new SupabaseStorageProvider();
 
   return activeProviderInstance;
-};
-
-const getFallbackProvider = (): LocalStorageProvider => {
-  if (!fallbackProviderInstance) {
-    fallbackProviderInstance = new LocalStorageProvider();
-  }
-  return fallbackProviderInstance;
-};
-
-const canUseLocalStorageFallback = (): boolean =>
-  process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_STORAGE_FALLBACK === 'true';
-
-const throwStorageFailure = (operation: string, err: unknown): never => {
-  const errorMsg = err instanceof Error ? err.message : String(err);
-  throw new Error(`${operation} failed on configured storage provider: ${errorMsg}`);
 };
 
 /**
@@ -43,71 +33,58 @@ export const setStorageProvider = (provider: IStorageProvider | null): void => {
   activeProviderInstance = provider;
 };
 
+const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
+
 /**
  * Uploads a legal document buffer to private tenant object storage.
- * Falls back to local storage if Supabase upload fails (e.g. offline/network issue).
+ * Fails closed on any storage error — there is no local fallback.
  */
 export const uploadStorageObject = async (options: Parameters<IStorageProvider['uploadFile']>[0]) => {
-  const provider = getStorageProvider();
   try {
-    return await provider.uploadFile(options);
+    return await getStorageProvider().uploadFile(options);
   } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (!canUseLocalStorageFallback()) {
-      throwStorageFailure('Storage upload', err);
-    }
-
-    console.warn(`[StorageService] Primary storage upload failed: ${errorMsg}. Falling back to LocalStorageProvider.`);
-    return await getFallbackProvider().uploadFile(options);
+    throw new Error(`Storage upload failed on configured storage provider: ${errorMessage(err)}`);
   }
 };
 
 /**
  * Generates a private signed download URL with temporary expiration.
  */
-export const getStorageSignedUrl = async (storageKey: string, expiresInSeconds?: number) => {
-  const provider = getStorageProvider();
+export const getStorageSignedUrl = async (
+  storageKey: string,
+  expiresInSeconds?: number
+): Promise<string> => {
   try {
-    return await provider.getSignedUrl(storageKey, expiresInSeconds);
+    return await getStorageProvider().getSignedUrl(storageKey, expiresInSeconds);
   } catch (err: unknown) {
-    if (!canUseLocalStorageFallback()) {
-      throwStorageFailure('Storage signed URL generation', err);
-    }
-
-    console.warn(`[StorageService] Primary getSignedUrl failed for ${storageKey}. Attempting fallback.`);
-    return await getFallbackProvider().getSignedUrl(storageKey, expiresInSeconds);
+    throw new Error(
+      `Storage signed URL generation failed on configured storage provider: ${errorMessage(err)}`
+    );
   }
 };
 
 /**
  * Deletes an object from private storage.
  */
-export const deleteStorageObject = async (storageKey: string) => {
-  const provider = getStorageProvider();
+export const deleteStorageObject = async (storageKey: string): Promise<boolean> => {
   try {
-    return await provider.deleteFile(storageKey);
+    return await getStorageProvider().deleteFile(storageKey);
   } catch (err: unknown) {
-    if (!canUseLocalStorageFallback()) {
-      throwStorageFailure('Storage deletion', err);
-    }
-
-    return await getFallbackProvider().deleteFile(storageKey);
+    throw new Error(
+      `Storage deletion failed on configured storage provider: ${errorMessage(err)}`
+    );
   }
 };
 
 /**
  * Retrieves file buffer from private storage.
  */
-export const getStorageFileBuffer = async (storageKey: string) => {
-  const provider = getStorageProvider();
+export const getStorageFileBuffer = async (storageKey: string): Promise<Buffer> => {
   try {
-    return await provider.getFileBuffer(storageKey);
+    return await getStorageProvider().getFileBuffer(storageKey);
   } catch (err: unknown) {
-    if (!canUseLocalStorageFallback()) {
-      throwStorageFailure('Storage file retrieval', err);
-    }
-
-    console.warn(`[StorageService] Primary getFileBuffer failed for ${storageKey}. Attempting fallback.`);
-    return await getFallbackProvider().getFileBuffer(storageKey);
+    throw new Error(
+      `Storage file retrieval failed on configured storage provider: ${errorMessage(err)}`
+    );
   }
 };

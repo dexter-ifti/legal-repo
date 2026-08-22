@@ -5,31 +5,31 @@ import {
   UploadFileOptions,
   StorageObjectReference,
 } from './StorageProvider.js';
+import { buildTenantStorageKey } from './storage-keys.js';
 
 export class SupabaseStorageProvider implements IStorageProvider {
   private client: SupabaseClient;
   private bucket: string;
 
-  constructor(supabaseUrl?: string, supabaseKey?: string, bucket?: string) {
-    const url = supabaseUrl || process.env.SUPABASE_URL || 'https://placeholder-url.supabase.co';
-    const key = supabaseKey || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'placeholder-key';
+  constructor(supabaseUrl?: string, supabaseKey?: string, bucket?: string, client?: SupabaseClient) {
+    const url = supabaseUrl || process.env.SUPABASE_URL;
+    const key = supabaseKey || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (!url || !key) {
+      throw new Error(
+        'Cloud storage is required but SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) are not configured.'
+      );
+    }
+
     this.bucket = bucket || process.env.STORAGE_BUCKET || 'legal-documents';
-    this.client = createClient(url, key);
+    this.client = client ?? createClient(url, key);
   }
 
   async uploadFile(options: UploadFileOptions): Promise<StorageObjectReference> {
     const { organizationId, fileName, mimeType, buffer, folder } = options;
 
-    if (!organizationId) {
-      throw new Error('Tenant organizationId is required for storage upload');
-    }
-
-    const uniqueId = crypto.randomUUID();
-    const safeFileName = fileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    const folderPath = folder ? folder.trim() : 'documents';
-
     // Strict tenant-scoped storage key format: `${organizationId}/${folderPath}/${uniqueId}_${safeFileName}`
-    const storageKey = `${organizationId}/${folderPath}/${uniqueId}_${safeFileName}`;
+    const storageKey = buildTenantStorageKey(organizationId, folder, fileName, crypto.randomUUID());
 
     const { error } = await this.client.storage
       .from(this.bucket)

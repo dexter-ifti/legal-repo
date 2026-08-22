@@ -1,7 +1,44 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { LegalRegexMatcher } from '../../src/services/extraction/legal-regex-matcher.js';
-import { getStorageProvider } from '../../src/storage/storage.service.js';
+import { setStorageProvider, uploadStorageObject, getStorageSignedUrl } from '../../src/storage/storage.service.js';
+import type {
+  IStorageProvider,
+  UploadFileOptions,
+  StorageObjectReference,
+} from '../../src/storage/StorageProvider.js';
+
+/** In-memory fake provider so security tests run offline without cloud credentials. */
+class InMemoryStorageProvider implements IStorageProvider {
+  private objects = new Map<string, Buffer>();
+
+  async uploadFile(options: UploadFileOptions): Promise<StorageObjectReference> {
+    const storageKey = `${options.organizationId}/documents/test-uuid_${options.fileName}`;
+    this.objects.set(storageKey, options.buffer);
+    return {
+      storageKey,
+      bucket: 'test-bucket',
+      fileName: options.fileName,
+      mimeType: options.mimeType,
+      sizeBytes: options.buffer.length,
+    };
+  }
+
+  async getSignedUrl(storageKey: string): Promise<string> {
+    if (!this.objects.has(storageKey)) throw new Error(`Storage object not found: ${storageKey}`);
+    return `https://cloud.example.com/signed/${encodeURIComponent(storageKey)}?token=abc&expires=999`;
+  }
+
+  async deleteFile(storageKey: string): Promise<boolean> {
+    return this.objects.delete(storageKey);
+  }
+
+  async getFileBuffer(storageKey: string): Promise<Buffer> {
+    const buf = this.objects.get(storageKey);
+    if (!buf) throw new Error(`Storage object not found: ${storageKey}`);
+    return buf;
+  }
+}
 
 /**
  * TASK-037 — Security Review & Audit Verification Suite
@@ -28,15 +65,18 @@ test('TASK-037 Security Review & Audit Verification', async (t) => {
   });
 
   await t.test('2. Signed URL Privacy & Temporary Access', async () => {
-    const storageProvider = getStorageProvider();
-    const uploaded = await storageProvider.uploadFile({
+    setStorageProvider(new InMemoryStorageProvider());
+
+    const uploaded = await uploadStorageObject({
       organizationId: 'tenant-123',
       fileName: 'notice-8942.pdf',
       mimeType: 'application/pdf',
       buffer: Buffer.from('%PDF-1.4 mock pdf'),
     });
 
-    const signedUrl = await storageProvider.getSignedUrl(uploaded.storageKey, 900); // 15 mins
+    assert.ok(uploaded.storageKey.startsWith('tenant-123/documents/'));
+
+    const signedUrl = await getStorageSignedUrl(uploaded.storageKey, 900); // 15 mins
 
     assert.ok(signedUrl, 'Signed URL should be generated');
     assert.ok(signedUrl.includes('expires') || signedUrl.includes('token') || signedUrl.includes('X-Amz-Expires') || signedUrl.includes('http'));
