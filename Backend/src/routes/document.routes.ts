@@ -7,6 +7,7 @@ import { DocumentService } from '../services/document.service.js';
 import { defaultDocumentProcessingService } from '../services/document-processing.service.js';
 import { sendSuccess, sendError } from '../utils/api-response.js';
 import { TenantAccessDeniedError } from '../utils/authorization.js';
+import { StorageObjectNotFoundError } from '../storage/errors.js';
 import { prisma } from '../db/client.js';
 
 const router = Router();
@@ -267,6 +268,10 @@ router.get(
         sendError(res, err.message, err.statusCode, err.errorCode);
         return;
       }
+      if (err instanceof StorageObjectNotFoundError) {
+        sendError(res, 'The stored file is missing from cloud storage', 404, 'DOCUMENT_FILE_MISSING');
+        return;
+      }
       const message = err instanceof Error ? err.message : 'Failed to generate download URL';
       sendError(res, message, 500, 'DOWNLOAD_ERROR');
     }
@@ -306,6 +311,10 @@ router.get(
     } catch (err: unknown) {
       if (err instanceof TenantAccessDeniedError) {
         sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      if (err instanceof StorageObjectNotFoundError) {
+        sendError(res, 'The stored file is missing from cloud storage', 404, 'DOCUMENT_FILE_MISSING');
         return;
       }
       const message = err instanceof Error ? err.message : 'Failed to generate preview';

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { SupabaseStorageProvider } from '../../src/storage/SupabaseStorageProvider.js';
+import { StorageObjectNotFoundError } from '../../src/storage/errors.js';
 
 /** Minimal mock of the Supabase storage client surface used by the provider. */
 function createMockSupabaseClient() {
@@ -9,6 +10,7 @@ function createMockSupabaseClient() {
     remove: [] as string[][],
   };
   let downloadError: { message: string } | null = null;
+  let signedUrlError: { message: string } | null = null;
 
   const client = {
     storage: {
@@ -18,6 +20,7 @@ function createMockSupabaseClient() {
           return { error: null };
         },
         createSignedUrl: async (storageKey: string, expiresInSeconds: number) => {
+          if (signedUrlError) return { data: null, error: signedUrlError };
           if (!storageKey) return { error: { message: 'missing key' } };
           return {
             data: { signedUrl: `https://cloud.example.com/signed/${storageKey}?exp=${expiresInSeconds}` },
@@ -36,6 +39,9 @@ function createMockSupabaseClient() {
     },
     setDownloadError(err: { message: string }) {
       downloadError = err;
+    },
+    setSignedUrlError(err: { message: string }) {
+      signedUrlError = err;
     },
     calls,
   };
@@ -101,7 +107,7 @@ test('SupabaseStorageProvider Unit Tests', async (t) => {
     assert.strictEqual(mock.calls.upload.length, 0);
   });
 
-  await t.test('generates signed URLs and deletes objects', async (t3) => {
+  await t.test('generates signed URLs and deletes objects', async () => {
     const mock = createMockSupabaseClient();
     const provider = new SupabaseStorageProvider(
       'https://example.supabase.co',
@@ -116,20 +122,60 @@ test('SupabaseStorageProvider Unit Tests', async (t) => {
     const deleted = await provider.deleteFile('org-1/documents/u_file.pdf');
     assert.strictEqual(deleted, true);
     assert.deepStrictEqual(mock.calls.remove, [['org-1/documents/u_file.pdf']]);
+  });
 
-    await t3.test('surfaces errors when download fails', async () => {
-      const failingMock = createMockSupabaseClient();
-      failingMock.setDownloadError({ message: 'object not found' });
-      const failingProvider = new SupabaseStorageProvider(
-        'https://example.supabase.co',
-        'service-key',
-        undefined,
-        failingMock as never
-      );
-      await assert.rejects(
-        async () => failingProvider.getFileBuffer('missing/key.pdf'),
-        /Failed to download file buffer/
-      );
-    });
+  await t.test('throws StorageObjectNotFoundError when the cloud object is missing', async () => {
+    const mock = createMockSupabaseClient();
+    mock.setDownloadError({ message: 'The resource was not found' });
+    const provider = new SupabaseStorageProvider(
+      'https://example.supabase.co',
+      'service-key',
+      undefined,
+      mock as never
+    );
+
+    try {
+      await provider.getFileBuffer('org-1/documents/gone.pdf');
+      assert.fail('Expected StorageObjectNotFoundError');
+    } catch (err) {
+      assert.ok(err instanceof StorageObjectNotFoundError);
+      assert.strictEqual((err as StorageObjectNotFoundError).storageKey, 'org-1/documents/gone.pdf');
+    }
+  });
+
+  await t.test('signed URL generation surfaces missing-object errors as typed errors', async () => {
+    const mock = createMockSupabaseClient();
+    mock.setSignedUrlError({ message: 'Object does not exist' });
+    const provider = new SupabaseStorageProvider(
+      'https://example.supabase.co',
+      'service-key',
+      undefined,
+      mock as never
+    );
+
+    await assert.rejects(
+      async () => provider.getSignedUrl('org-1/documents/gone.pdf', 900),
+      StorageObjectNotFoundError
+    );
+  });
+
+  await t.test('surfaces non-not-found download errors as generic storage errors', async () => {
+    const mock = createMockSupabaseClient();
+    mock.setDownloadError({ message: 'bucket quota exceeded' });
+    const provider = new SupabaseStorageProvider(
+      'https://example.supabase.co',
+      'service-key',
+      undefined,
+      mock as never
+    );
+
+    await assert.rejects(
+      async () => provider.getFileBuffer('missing/key.pdf'),
+      /Failed to download file buffer/
+    );
+    await assert.rejects(
+      async () => provider.getFileBuffer('missing/key.pdf'),
+      (err: unknown) => !(err instanceof StorageObjectNotFoundError)
+    );
   });
 });

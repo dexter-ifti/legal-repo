@@ -1,5 +1,6 @@
 import { IStorageProvider } from './StorageProvider.js';
 import { SupabaseStorageProvider } from './SupabaseStorageProvider.js';
+import { StorageObjectNotFoundError } from './errors.js';
 
 let activeProviderInstance: IStorageProvider | null = null;
 
@@ -57,6 +58,7 @@ export const getStorageSignedUrl = async (
   try {
     return await getStorageProvider().getSignedUrl(storageKey, expiresInSeconds);
   } catch (err: unknown) {
+    if (err instanceof StorageObjectNotFoundError) throw err;
     throw new Error(
       `Storage signed URL generation failed on configured storage provider: ${errorMessage(err)}`
     );
@@ -83,6 +85,7 @@ export const getStorageFileBuffer = async (storageKey: string): Promise<Buffer> 
   try {
     return await getStorageProvider().getFileBuffer(storageKey);
   } catch (err: unknown) {
+    if (err instanceof StorageObjectNotFoundError) throw err;
     throw new Error(
       `Storage file retrieval failed on configured storage provider: ${errorMessage(err)}`
     );

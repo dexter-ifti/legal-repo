@@ -6,6 +6,11 @@ import {
   StorageObjectReference,
 } from './StorageProvider.js';
 import { buildTenantStorageKey } from './storage-keys.js';
+import { StorageObjectNotFoundError } from './errors.js';
+
+/** Supabase signals missing objects with these messages across storage endpoints. */
+const isObjectNotFound = (message: string | undefined): boolean =>
+  !!message && /not found|does not exist|no such object|invalid key/i.test(message);
 
 export class SupabaseStorageProvider implements IStorageProvider {
   private client: SupabaseClient;
@@ -58,6 +63,9 @@ export class SupabaseStorageProvider implements IStorageProvider {
       .createSignedUrl(storageKey, expiresInSeconds);
 
     if (error || !data?.signedUrl) {
+      if (isObjectNotFound(error?.message)) {
+        throw new StorageObjectNotFoundError(storageKey, error?.message);
+      }
       throw new Error(`Failed to generate signed URL for ${storageKey}: ${error?.message || 'Unknown error'}`);
     }
 
@@ -82,6 +90,9 @@ export class SupabaseStorageProvider implements IStorageProvider {
       .download(storageKey);
 
     if (error || !data) {
+      if (isObjectNotFound(error?.message)) {
+        throw new StorageObjectNotFoundError(storageKey, error?.message);
+      }
       throw new Error(`Failed to download file buffer for ${storageKey}: ${error?.message || 'Unknown error'}`);
     }
 
