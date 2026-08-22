@@ -1,10 +1,11 @@
-import { IOcrProvider, OcrResult } from './ocr-provider.interface.js';
+import { IOcrProvider, OcrResult, OcrOptions } from './ocr-provider.interface.js';
+import { sliceFirstPages } from './pdf-page-slicer.service.js';
 
 /**
  * Mock OCR provider for deterministic local testing and fallback.
  */
 export class MockOcrProvider implements IOcrProvider {
-  async extractText(pdfBuffer: Buffer): Promise<OcrResult> {
+  async extractText(pdfBuffer: Buffer, _options?: OcrOptions): Promise<OcrResult> {
     if (!pdfBuffer || pdfBuffer.length === 0) {
       return {
         text: '',
@@ -47,22 +48,34 @@ export class MistralOcrProvider implements IOcrProvider {
   private apiKey: string;
   private baseUrl: string;
   private fallbackProvider: IOcrProvider;
+  private readonly slicer: (buffer: Buffer, maxPages: number) => Promise<Buffer>;
+  private readonly fetchImpl: typeof fetch;
 
-  constructor(apiKey?: string, baseUrl: string = 'https://api.mistral.ai/v1/ocr') {
+  constructor(
+    apiKey?: string,
+    baseUrl: string = 'https://api.mistral.ai/v1/ocr',
+    slicer: (buffer: Buffer, maxPages: number) => Promise<Buffer> = sliceFirstPages,
+    fetchImpl?: typeof fetch
+  ) {
     this.apiKey = apiKey || process.env.MISTRAL_API_KEY || '';
     this.baseUrl = baseUrl;
     this.fallbackProvider = new MockOcrProvider();
+    this.slicer = slicer;
+    this.fetchImpl = fetchImpl || fetch.bind(globalThis);
   }
 
-  async extractText(pdfBuffer: Buffer): Promise<OcrResult> {
-    if (!this.apiKey || process.env.NODE_ENV === 'test') {
-      // In test mode or when API key is missing, delegate safely to mock OCR fallback
-      return this.fallbackProvider.extractText(pdfBuffer);
+  async extractText(pdfBuffer: Buffer, options?: OcrOptions): Promise<OcrResult> {
+    if (!this.apiKey) {
+      // When API key is missing, delegate safely to mock OCR fallback
+      return this.fallbackProvider.extractText(pdfBuffer, options);
     }
 
     try {
-      const base64Pdf = pdfBuffer.toString('base64');
-      const response = await fetch(this.baseUrl, {
+      // Only send the leading pages to bound OCR cost on large files.
+      const maxPages = options?.maxPages ?? DEFAULT_MAX_PAGES;
+      const boundedBuffer = await this.slicer(pdfBuffer, maxPages);
+      const base64Pdf = boundedBuffer.toString('base64');
+      const response = await this.fetchImpl(this.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,7 +113,7 @@ export class MistralOcrProvider implements IOcrProvider {
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Mistral OCR call failed';
       // Graceful fallback to mock provider if remote API call fails
-      const fallbackResult = await this.fallbackProvider.extractText(pdfBuffer);
+      const fallbackResult = await this.fallbackProvider.extractText(pdfBuffer, options);
       return {
         ...fallbackResult,
         error: `Mistral OCR Error (${errorMsg}), using fallback`,
@@ -109,11 +122,14 @@ export class MistralOcrProvider implements IOcrProvider {
   }
 }
 
+const DEFAULT_MAX_PAGES = 2;
+
 /**
  * Factory function to retrieve active OCR provider based on configuration.
+ * Real OCR is never used in test mode, regardless of key presence.
  */
 export function getOcrProvider(): IOcrProvider {
-  if (process.env.MISTRAL_API_KEY) {
+  if (process.env.MISTRAL_API_KEY && process.env.NODE_ENV !== 'test') {
     return new MistralOcrProvider();
   }
   return new MockOcrProvider();

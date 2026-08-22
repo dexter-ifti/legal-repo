@@ -72,6 +72,20 @@ router.post(
         },
         statusCode
       );
+
+      // Core product flow: automatically process every upload (OCR/text
+      // extraction -> classification -> case matching) without blocking the
+      // upload response. Idempotent and retryable via /documents/:id/retry.
+      if (!result.isDuplicate) {
+        defaultDocumentProcessingService
+          .autoProcessDocument(organizationId, doc.id)
+          .catch((err: unknown) =>
+            console.error(
+              `[Upload] Auto-processing trigger failed for ${doc.id}:`,
+              err instanceof Error ? err.message : err
+            )
+          );
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to upload document';
       if (message.includes('Target case not found')) {

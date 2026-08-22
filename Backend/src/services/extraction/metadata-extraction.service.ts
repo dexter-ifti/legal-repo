@@ -66,13 +66,20 @@ export class MetadataExtractionService {
 
   /**
    * Persists extracted metadata into database within a single transaction.
+   * Idempotent: existing rows for the same field names are replaced so
+   * pipeline retries never create duplicate signals.
    */
   async persistExtractedMetadata(documentId: string, text: string, source: string = 'DOCUMENT_TEXT') {
     const extracted = this.extract(text, source);
 
     if (extracted.allFields.length > 0) {
-      await prisma.$transaction(
-        extracted.allFields.map((field) =>
+      const fieldNames = [...new Set(extracted.allFields.map((f) => f.fieldName))];
+
+      await prisma.$transaction([
+        prisma.documentMetadata.deleteMany({
+          where: { documentId, fieldName: { in: fieldNames } },
+        }),
+        ...extracted.allFields.map((field) =>
           prisma.documentMetadata.create({
             data: {
               documentId,
@@ -82,8 +89,8 @@ export class MetadataExtractionService {
               source: field.source,
             },
           })
-        )
-      );
+        ),
+      ]);
     }
 
     return extracted;

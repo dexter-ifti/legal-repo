@@ -8,6 +8,7 @@ import { IOcrProvider } from './ocr/ocr-provider.interface.js';
 import { defaultMetadataExtractionService } from './extraction/metadata-extraction.service.js';
 import { defaultDocumentClassifierService } from './classification/document-classifier.service.js';
 import { defaultCaseMatcherService } from './matching/case-matcher.service.js';
+import { getOcrMaxPages } from '../config/processing.config.js';
 
 export class DocumentProcessingService {
   private extractor: ITextExtractor;
@@ -71,12 +72,17 @@ export class DocumentProcessingService {
         console.warn(`Native text extraction failed for doc ${documentId}, falling back to OCR:`, err);
       }
 
-      // 4. OCR Fallback if native text is empty or insufficient
+      // 4. OCR Fallback if native text is empty or insufficient.
+      // OCR scans only the leading pages (OCR_MAX_PAGES, default 2) — legal
+      // documents carry identifying metadata (court, case number, parties)
+      // in the opening pages, so a bounded prefix keeps cost/latency low.
       if (!extractedText || extractedText.length < 20) {
         isScanned = true;
         extractionSource = 'OCR';
 
-        const ocrResult = await this.ocrProvider.extractText(fileBuffer);
+        const ocrResult = await this.ocrProvider.extractText(fileBuffer, {
+          maxPages: getOcrMaxPages(),
+        });
 
         if (ocrResult.text && !ocrResult.error && ocrResult.text.trim().length > 0) {
           extractedText = ocrResult.text.trim();
@@ -219,10 +225,49 @@ export class DocumentProcessingService {
   }
 
   /**
+   * Automatic post-upload processing trigger.
+   *
+   * Fire-and-forget safe: claims the document atomically (only if still in
+   * UPLOADED state) so concurrent triggers and manual retries never double-run,
+   * then runs the full extract -> classify -> match pipeline. Failures land
+   * in PROCESSING_FAILED and remain retryable via POST /documents/:id/retry.
+   */
+  async autoProcessDocument(organizationId: string, documentId: string): Promise<void> {
+    try {
+      const claimed = await prisma.document.updateMany({
+        where: {
+          id: documentId,
+          organizationId,
+          processingStatus: 'UPLOADED',
+        },
+        data: { processingStatus: 'QUEUED' },
+      });
+
+      // Another trigger already picked this document up — nothing to do.
+      if (claimed.count === 0) {
+        return;
+      }
+
+      await this.processDocumentPipeline(organizationId, documentId);
+    } catch (err: unknown) {
+      console.error(
+        `Automatic processing failed for ${documentId}:`,
+        err instanceof Error ? err.message : err
+      );
+
+      await prisma.document
+        .update({
+          where: { id: documentId },
+          data: { processingStatus: 'PROCESSING_FAILED' },
+        })
+        .catch(() => {});
+    }
+  }
+
+  /**
    * Idempotent Pipeline Retry Handler (TASK-032).
    * Safe retry mechanism resetting metadata errors without deleting original upload binaries.
-   */
-  async retryDocumentPipeline(organizationId: string, documentId: string) {
+   */  async retryDocumentPipeline(organizationId: string, documentId: string) {
     if (!organizationId || !documentId) {
       throw new Error('organizationId and documentId are required for pipeline retry');
     }

@@ -51,7 +51,9 @@ Correct legal documents automatically identified and filed into the correct case
 - Supabase Auth behind vendor-flexible `IAuthProvider` interface
 - Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`) — cloud-only; local disk storage is not supported and all storage operations fail closed separate from database
 - Server-side multi-tenant authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`)
-- Asynchronous document processing pipeline architecture
+ - Asynchronous document processing pipeline architecture
+ - **Automatic post-upload processing**: every upload triggers the extract -> OCR -> classify -> match pipeline asynchronously (atomic claim, idempotent, retryable via `/documents/:id/retry`)
+ - Page-limited OCR: scanned documents are OCR'd only for the leading `OCR_MAX_PAGES` (default 2) pages via `pdf-lib` slicing before the Mistral OCR call
 - Deterministic extraction & matching before expensive AI/LLM calls
 
 ---
