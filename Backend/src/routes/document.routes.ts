@@ -216,9 +216,13 @@ router.get(
         documentType: document.documentType,
         processingStatus: document.processingStatus,
         matchStatus: document.matchStatus,
+        matchConfidence: document.matchConfidence,
         uploadedBy: document.uploadedBy,
         uploader: document.uploader,
         uploadedAt: document.uploadedAt,
+        // Extracted fields for verification UI. The full document text is
+        // intentionally excluded — verification only needs structured data.
+        metadata: (document.metadata || []).filter((m) => m.fieldName !== 'extracted_text'),
       }, 200);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to retrieve document';

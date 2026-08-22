@@ -16,6 +16,7 @@ import {
   User,
   HardDrive,
   Scan,
+  ScanSearch,
   FileCheck2,
   Tag,
   FolderOpen,
@@ -209,6 +210,14 @@ export default function DocumentViewerPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/documents/${docId}/verify`)}
+          >
+            <ScanSearch className="mr-1.5 h-4 w-4" />
+            Verify Data
+          </Button>
           <Button
             variant="outline"
             size="sm"

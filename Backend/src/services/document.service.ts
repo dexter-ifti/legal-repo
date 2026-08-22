@@ -178,6 +178,14 @@ export class DocumentService {
         uploader: {
           select: { id: true, name: true, email: true },
         },
+        metadata: {
+          select: {
+            fieldName: true,
+            fieldValue: true,
+            confidence: true,
+            source: true,
+          },
+        },
       },
     });
 
