@@ -68,7 +68,8 @@ Correct legal documents automatically identified and filed into the correct case
 
 ### Milestone 2 — Multi-Tenancy & Case Management (TASK-006 — TASK-011)
 - `Organization` domain model & tenant-scoping isolation logic.
-- User membership, roles (`ADMIN`, `ATTORNEY`, `PARALEGAL`, `STAFF`), and organization assignment API (`GET /api/v1/organizations/me/members`).
+- User membership with roles (`ADMIN`, `MEMBER`, `ADVOCATE`, `CLERK`; signups join as `MEMBER`, organization creators become `ADMIN`) and APIs: `GET /api/v1/organizations/me/members` plus ADMIN-only `PATCH /api/v1/organizations/me/members/:userId` for role changes (self-demotion guard prevents removing an org's last admin).
+- Team & role management UI in Settings → Organization (real data; demo users see a notice).
 - `Case` domain model and Express CRUD routes (`POST`, `GET`, `GET :id`, `PATCH`, `DELETE`).
 - Zod request validation schemas & server-side authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`).
 - Interactive Case Management UI (`Frontend/app/(app)/cases`, `CreateCaseDialog`, search & status filtering).

@@ -108,3 +108,41 @@ export async function getOrganizationMembers(
 
   return users;
 }
+
+/**
+ * Updates a member's role within a tenant. Tenant-scoped: the target user
+ * must belong to the same organization. Admins cannot demote themselves,
+ * preventing organizations from being left without an admin.
+ */
+export async function updateMemberRole(
+  organizationId: string,
+  userId: string,
+  role: 'ADMIN' | 'MEMBER',
+  requestingUserId: string
+): Promise<OrganizationMember> {
+  const targetUser = await prisma.user.findFirst({
+    where: { id: userId, organizationId },
+  });
+
+  if (!targetUser) {
+    throw new Error('Member not found in this organization');
+  }
+
+  if (targetUser.id === requestingUserId && role !== 'ADMIN') {
+    throw new Error('You cannot change your own admin role');
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: targetUser.id },
+    data: { role },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      createdAt: true,
+    },
+  });
+
+  return updated;
+}

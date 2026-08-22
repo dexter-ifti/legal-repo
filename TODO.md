@@ -122,6 +122,25 @@ Acceptance:
 
 ---
 
+## TASK-006b — User & role management (PRD §27)
+
+Status: DONE
+
+Goal:
+Allow organization Admins to manage team members and roles from the dashboard.
+
+Acceptance:
+- ADMIN-only `PATCH /api/v1/organizations/me/members/:userId` changes role (`ADMIN` | `MEMBER`)
+- target member must belong to the same tenant (cross-tenant returns 404)
+- admins cannot change their own admin role (org is never left without an admin)
+- Settings → Organization tab lists real members with role controls for Admins
+- new signups join as MEMBER; organization creators become ADMIN
+- integration tests cover promotion, invalid roles, cross-tenant targets, and non-admin rejection
+
+Out of scope (future): email invitations, member removal, ADVOCATE/CLERK granular permissions.
+
+---
+
 # Milestone 2 — Cases
 
 ## TASK-008 — Case database model

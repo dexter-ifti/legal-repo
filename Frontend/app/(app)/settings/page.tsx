@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { User, Building2, Bell, Shield, Zap, Save, Check } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { User, Building2, Bell, Shield, Zap, Save, Check, Loader2, Users } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -16,8 +16,23 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useUserProfile } from '@/lib/use-user';
 import { toast } from 'sonner';
+
+interface OrgMember {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt?: string;
+}
 
 export default function SettingsPage() {
   const { user } = useUserProfile();
@@ -134,60 +149,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="organization" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Organization Details</CardTitle>
-              <CardDescription>Firm-wide settings and branding</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firm">Firm name</Label>
-                  <Input id="firm" defaultValue="Mitchell & Associates" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="plan">Subscription plan</Label>
-                  <div className="flex h-10 items-center justify-between rounded-md border px-3">
-                    <span className="text-sm font-medium">Professional</span>
-                    <Badge variant="outline" className="text-success">Active</Badge>
-                  </div>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="seats">Team seats</Label>
-                  <Input id="seats" type="number" defaultValue="12" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="storage">Storage used</Label>
-                  <div className="flex h-10 items-center justify-between rounded-md border px-3">
-                    <span className="text-sm text-muted-foreground">8.4 GB of 50 GB</span>
-                    <span className="text-xs font-medium text-brand">17%</span>
-                  </div>
-                </div>
-              </div>
-              <Separator />
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Practice areas</p>
-                    <p className="text-xs text-muted-foreground">Areas your firm handles</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {['Personal Injury', 'Estate Planning', 'Commercial Litigation', 'Immigration', 'Family Law', 'Real Estate'].map((area) => (
-                    <Badge key={area} variant="secondary">{area}</Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <OrganizationSettings />
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-4">
@@ -374,6 +336,241 @@ function NotificationToggle({
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
+
+function OrganizationSettings() {
+  const { user } = useUserProfile();
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  const [loading, setLoading] = useState(true);
+  const [orgName, setOrgName] = useState('');
+  const [memberCount, setMemberCount] = useState(0);
+  const [members, setMembers] = useState<OrgMember[]>([]);
+  const [savingName, setSavingName] = useState(false);
+  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
+
+  // Per PRD ("MVP Roles"): simplified Admin / Member. Only ADMIN sees controls.
+  const isAdmin = !user.isDemo && user.role === 'ADMIN';
+
+  const authHeaders = useCallback((): Record<string, string> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
+
+  const loadOrganization = useCallback(async () => {
+    if (user.isDemo) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [orgRes, membersRes] = await Promise.all([
+        fetch(`${API_URL}/api/v1/organizations/me`, { headers: authHeaders() }),
+        fetch(`${API_URL}/api/v1/organizations/me/members`, { headers: authHeaders() }),
+      ]);
+
+      if (orgRes.ok) {
+        const body = await orgRes.json();
+        setOrgName(body.data?.organization?.name || '');
+        setMemberCount(body.data?.organization?.memberCount ?? 0);
+      }
+      if (membersRes.ok) {
+        const body = await membersRes.json();
+        setMembers(body.data?.members || []);
+      }
+    } catch (err: unknown) {
+      console.error('Failed to load organization:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_URL, user.isDemo, authHeaders]);
+
+  useEffect(() => {
+    loadOrganization();
+  }, [loadOrganization]);
+
+  const saveOrgName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    setSavingName(true);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/organizations/me`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ name: orgName }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error?.message || 'Failed to update organization');
+      toast.success('Organization updated');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update organization');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const changeMemberRole = async (memberId: string, role: string) => {
+    setRoleUpdatingId(memberId);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/organizations/me/members/${memberId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ role }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error?.message || 'Failed to update role');
+
+      setMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, role: body.data.member.role } : m))
+      );
+      toast.success(`Role updated to ${role.toLowerCase()}`);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update role');
+      // Re-sync on failure
+      loadOrganization();
+    } finally {
+      setRoleUpdatingId(null);
+    }
+  };
+
+  if (user.isDemo) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Organization</CardTitle>
+          <CardDescription>Tenant and member management</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            You are in demo mode. Sign in with a real account to manage your organization and team roles.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-40 items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-brand" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Organization profile */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Organization Details</CardTitle>
+          <CardDescription>Your firm&apos;s tenant profile</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={saveOrgName} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="firm">Firm name</Label>
+                <Input
+                  id="firm"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  disabled={!isAdmin}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Team size</Label>
+                <div className="flex h-10 items-center justify-between rounded-md border px-3">
+                  <span className="text-sm font-medium">
+                    {memberCount} member{memberCount === 1 ? '' : 's'}
+                  </span>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+            {isAdmin && (
+              <div className="flex justify-end">
+                <Button type="submit" disabled={savingName}>
+                  {savingName ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Save
+                </Button>
+              </div>
+            )}
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Members & roles */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Members &amp; Roles</CardTitle>
+          <CardDescription>
+            {isAdmin
+              ? 'Manage your team. Members can upload, search, and view; Admins manage the organization.'
+              : 'Team roster for your organization. Only Admins can change roles.'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {members.length === 0 ? (
+            <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+              No members found.
+            </p>
+          ) : (
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between gap-3 rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
+                    {member.name
+                      ? member.name.trim().split(' ').slice(0, 2).map((p) => p[0]).join('')
+                      : '?'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {member.name || 'Unnamed member'}
+                      {member.id === user.id && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                  </div>
+                </div>
+
+                {isAdmin ? (
+                  <Select
+                    value={member.role}
+                    onValueChange={(value) => changeMemberRole(member.id, value)}
+                    disabled={roleUpdatingId === member.id}
+                  >
+                    <SelectTrigger className="w-[120px] shrink-0">
+                      {roleUpdatingId === member.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <SelectValue />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="MEMBER">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge variant={member.role === 'ADMIN' ? 'default' : 'outline'} className="shrink-0">
+                    {member.role}
+                  </Badge>
+                )}
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

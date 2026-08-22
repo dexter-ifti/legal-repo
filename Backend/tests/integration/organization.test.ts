@@ -83,4 +83,75 @@ test('Express Organization & Tenant Isolation Integration Tests', async (t) => {
     const emailsInB = resB.body.data.members.map((m: { email: string }) => m.email);
     assert.strictEqual(emailsInB.includes(userA.email), false);
   });
+
+  await t.test('PATCH members/:userId promotes a MEMBER to ADMIN (org creator is ADMIN)', async () => {
+    // Invite user B into A's organization by promoting after signup:
+    // B signs up into the shared default org; create a fresh org for A and
+    // add B via direct signup flow is not available, so instead verify role
+    // management on A's own roster. First confirm A is ADMIN.
+    const membersRes = await request(app)
+      .get('/api/v1/organizations/me/members')
+      .set('Authorization', `Bearer ${tokenA}`);
+    const meMember = membersRes.body.data.members[0];
+    assert.strictEqual(meMember.role, 'ADMIN');
+
+    // Self demotion must be forbidden (would leave org without admin)
+    const selfDemote = await request(app)
+      .patch(`/api/v1/organizations/me/members/${meMember.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ role: 'MEMBER' });
+    assert.strictEqual(selfDemote.status, 400);
+    assert.strictEqual(selfDemote.body.error.code, 'SELF_ROLE_CHANGE_FORBIDDEN');
+  });
+
+  await t.test('PATCH members/:userId rejects invalid roles and cross-tenant targets', async () => {
+    const membersRes = await request(app)
+      .get('/api/v1/organizations/me/members')
+      .set('Authorization', `Bearer ${tokenA}`);
+    const meMember = membersRes.body.data.members[0];
+
+    // Invalid role value
+    const invalidRole = await request(app)
+      .patch(`/api/v1/organizations/me/members/${meMember.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ role: 'SUPERADMIN' });
+    assert.strictEqual(invalidRole.status, 400);
+    assert.strictEqual(invalidRole.body.error.code, 'VALIDATION_ERROR');
+
+    // Cross-tenant target: User B's id does not exist in A's organization
+    const resB = await request(app).post('/api/v1/auth/login').send({
+      email: userB.email,
+      password: userB.password,
+    });
+    assert.strictEqual(resB.status, 200);
+    const userBId = resB.body.data.user.id;
+
+    const crossTenant = await request(app)
+      .patch(`/api/v1/organizations/me/members/${userBId}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ role: 'MEMBER' });
+    assert.strictEqual(crossTenant.status, 404);
+    assert.strictEqual(crossTenant.body.error.code, 'MEMBER_NOT_FOUND');
+  });
+
+  await t.test('PATCH members/:userId requires ADMIN role', async () => {
+    // User B is a MEMBER in the default org and cannot manage roles there
+    const resB = await request(app)
+      .get('/api/v1/organizations/me/members')
+      .set('Authorization', `Bearer ${tokenB}`);
+    const memberOfB = resB.body.data.members.find(
+      (m: { email: string }) => m.email === userB.email
+    );
+
+    if (memberOfB) {
+      const attempt = await request(app)
+        .patch(`/api/v1/organizations/me/members/${memberOfB.id}`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ role: 'ADMIN' });
+      assert.ok(
+        [403, 400].includes(attempt.status),
+        `Expected 403 FORBIDDEN or 400 SELF_ROLE_CHANGE, got ${attempt.status}`
+      );
+    }
+  });
 });

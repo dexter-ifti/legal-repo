@@ -7,6 +7,7 @@ import {
   getOrganizationById,
   updateOrganization,
   getOrganizationMembers,
+  updateMemberRole,
 } from '../services/organization.service.js';
 import { sendSuccess, sendError } from '../utils/api-response.js';
 
@@ -18,6 +19,12 @@ const createOrgSchema = z.object({
 
 const updateOrgSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters long'),
+});
+
+const updateMemberRoleSchema = z.object({
+  role: z.enum(['ADMIN', 'MEMBER'], {
+    errorMap: () => ({ message: 'Role must be ADMIN or MEMBER' }),
+  }),
 });
 
 router.post('/', authenticateToken, async (req: TenantRequest, res: Response) => {
@@ -95,5 +102,52 @@ router.get('/me/members', authenticateToken, requireTenant, async (req: TenantRe
     return sendError(res, message, 500, 'MEMBERS_FETCH_FAILED');
   }
 });
+
+/**
+ * PATCH /api/v1/organizations/me/members/:userId
+ * ADMIN-only. Changes a member's role within the authenticated tenant.
+ * The target user must belong to the same organization (enforced in service).
+ */
+router.patch(
+  '/me/members/:userId',
+  authenticateToken,
+  requireTenant,
+  requireRole('ADMIN'),
+  async (req: TenantRequest, res: Response) => {
+    try {
+      const parseResult = updateMemberRoleSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const issue = parseResult.error.issues[0];
+        return sendError(res, issue.message, 400, 'VALIDATION_ERROR');
+      }
+
+      if (!req.organizationId || !req.user) {
+        return sendError(res, 'Organization identity missing', 403, 'TENANT_REQUIRED');
+      }
+
+      try {
+        const member = await updateMemberRole(
+          req.organizationId,
+          req.params.userId,
+          parseResult.data.role,
+          req.user.id
+        );
+        return sendSuccess(res, { member }, 200);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to update member';
+        if (message === 'Member not found in this organization') {
+          return sendError(res, message, 404, 'MEMBER_NOT_FOUND');
+        }
+        if (message === 'You cannot change your own admin role') {
+          return sendError(res, message, 400, 'SELF_ROLE_CHANGE_FORBIDDEN');
+        }
+        throw err;
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update member role';
+      return sendError(res, message, 500, 'MEMBER_UPDATE_FAILED');
+    }
+  }
+);
 
 export default router;
