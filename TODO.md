@@ -137,7 +137,22 @@ Acceptance:
 - **self-signup provisions a dedicated organization with the creator as ADMIN** (users never auto-join an existing tenant; demo users land in the deterministic demo org)
 - integration tests cover tenant provisioning, invalid roles, cross-tenant targets, and cross-tenant admin rejection
 
-Out of scope (future): email invitations / org codes for joining an existing organization, member removal, ADVOCATE/CLERK granular permissions.
+## TASK-006c — Invite flow (PRD: joining an existing organization)
+
+Status: DONE
+
+Goal:
+Allow Admins to invite users to their existing organization via shareable signup links.
+
+Acceptance:
+- ADMIN-only `POST /api/v1/organizations/me/invites` creates a single-use, 7-day-expiry invite bound to the tenant (`Invite` model: token → organizationId, email, role, status)
+- Invite link is built from the `FRONTEND_URL` env (never hardcoded); re-inviting the same email revokes previous pending links
+- Public `GET /api/v1/invites/validate/:token` returns validity + invited email/role + org name for the signup page
+- Signup accepts `inviteToken`: valid invites place the user in the inviting tenant with the invited role; invalid/expired/consumed tokens fall back to normal self-provisioning
+- Signup page shows "invited to X as Y" context with pre-filled email/org; Settings → Organization has an Admin invite generator with copyable link
+- Integration tests cover creation, validation, acceptance (role + tenant binding), consumption, fallback provisioning, and revocation
+
+Out of scope (future): email delivery / other sharing mediums, member removal, ADVOCATE/CLERK granular permissions.
 
 ---
 

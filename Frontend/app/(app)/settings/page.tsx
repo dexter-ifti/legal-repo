@@ -505,6 +505,9 @@ function OrganizationSettings() {
         </CardContent>
       </Card>
 
+      {/* Invite members (Admin only) */}
+      {isAdmin && <InviteMemberCard onMemberJoined={loadOrganization} />}
+
       {/* Members & roles */}
       <Card>
         <CardHeader>
@@ -514,8 +517,7 @@ function OrganizationSettings() {
               ? 'Manage your team. Members can upload, search, and view; Admins manage the organization.'
               : 'Team roster for your organization. Only Admins can change roles.'}
           </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-1">
+        </CardHeader>        <CardContent className="space-y-1">
           {members.length === 0 ? (
             <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
               No members found.
@@ -572,5 +574,128 @@ function OrganizationSettings() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function InviteMemberCard({ onMemberJoined }: { onMemberJoined: () => void }) {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('MEMBER');
+  const [generating, setGenerating] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [generatedEmail, setGeneratedEmail] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const generateInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGenerating(true);
+    setCopied(false);
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`${API_URL}/api/v1/organizations/me/invites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error?.message || 'Failed to create invite');
+
+      setGeneratedLink(body.data.inviteUrl);
+      setGeneratedEmail(body.data.invite.email);
+      toast.success('Invite link generated');
+      onMemberJoined();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create invite');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!generatedLink) return;
+    try {
+      await navigator.clipboard.writeText(generatedLink);
+      setCopied(true);
+      toast.success('Invite link copied to clipboard');
+    } catch {
+      // Clipboard API can be unavailable; the link remains visible to copy manually.
+      toast.error('Copy failed — select and copy the link manually.');
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Invite Member</CardTitle>
+        <CardDescription>
+          Generate a single-use signup link. It expires in 7 days.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <form onSubmit={generateInvite} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="invite-email">Email address</Label>
+            <Input
+              id="invite-email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="colleague@chambers.com"
+              required
+            />
+          </div>
+          <div className="space-y-2 sm:w-[140px]">
+            <Label>Role</Label>
+            <Select value={inviteRole} onValueChange={setInviteRole}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MEMBER">Member</SelectItem>
+                <SelectItem value="ADMIN">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="submit" disabled={generating}>
+            {generating ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Invite Link'
+            )}
+          </Button>
+        </form>
+
+        {generatedLink && (
+          <div className="space-y-2 rounded-lg border border-success/30 bg-success-soft/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              Invite for <span className="font-medium text-foreground">{generatedEmail}</span> —
+              share this link with them:
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-md bg-background px-2 py-1.5 text-xs text-muted-foreground">
+                {generatedLink}
+              </code>
+              <Button type="button" size="sm" variant="outline" onClick={copyLink}>
+                {copied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-success" />
+                    Copied
+                  </>
+                ) : (
+                  'Copy'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

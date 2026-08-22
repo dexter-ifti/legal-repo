@@ -15,6 +15,12 @@ enum Role {
   CLERK
 }
 
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
 enum ProcessingStatus {
   UPLOADED
   QUEUED
@@ -48,8 +54,27 @@ model Organization {
   cases       Case[]
   documents   Document[]
   auditEvents AuditEvent[]
+  invites     Invite[]
 
   @@map("organizations")
+}
+
+model Invite {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  email          String
+  role           Role         @default(MEMBER)
+  token          String       @unique
+  status         InviteStatus @default(PENDING)
+  expiresAt      DateTime     @map("expires_at")
+  invitedBy      String       @map("invited_by") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("invites")
 }
 
 model User {

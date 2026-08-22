@@ -1,22 +1,60 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { AlertCircle, Loader2, ArrowRight, MailCheck } from 'lucide-react';
 import { Logo } from '@/components/shared/logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-export default function SignupPage() {
+interface InviteContext {
+  email?: string;
+  role?: string;
+  organizationName?: string;
+}
+
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('invite');
+
+  const [invite, setInvite] = useState<InviteContext | null>(null);
+  const [inviteChecked, setInviteChecked] = useState(!inviteToken);
   const [name, setName] = useState('');
   const [firm, setFirm] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Resolve invite context so the form can welcome the recipient and
+  // pre-fill their email and organization name.
+  useEffect(() => {
+    if (!inviteToken) return;
+    let cancelled = false;
+
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    fetch(`${baseUrl}/api/v1/invites/validate/${encodeURIComponent(inviteToken)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (cancelled) return;
+        if (body?.data?.valid) {
+          setInvite(body.data);
+          if (body.data.email) setEmail(body.data.email);
+          if (body.data.organizationName) setFirm(body.data.organizationName);
+        }
+        setInviteChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) setInviteChecked(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,7 +72,12 @@ export default function SignupPage() {
       const response = await fetch(`${baseUrl}/api/v1/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({
+          email,
+          password,
+          name,
+          ...(inviteToken ? { inviteToken } : {}),
+        }),
       });
 
       const data = await response.json();
@@ -73,11 +116,23 @@ export default function SignupPage() {
             <Logo size="lg" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Create your workspace
+            {invite ? `Join ${invite.organizationName}` : 'Create your workspace'}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Start automating your legal document workflows today.
+            {invite
+              ? `You've been invited as ${invite.role?.toLowerCase() || 'a member'}.`
+              : 'Start automating your legal document workflows today.'}
           </p>
+
+          {invite && (
+            <Alert className="mt-4 border-success/40 bg-success-soft/40">
+              <MailCheck className="h-4 w-4 text-success" />
+              <AlertDescription className="text-xs">
+                Invited to join <strong>{invite.organizationName}</strong> as{' '}
+                <strong>{invite.role?.toLowerCase()}</strong> — your email is pre-filled below.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="destructive" className="mt-4">
@@ -98,17 +153,25 @@ export default function SignupPage() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="firm">Firm name</Label>
-              <Input
-                id="firm"
-                type="text"
-                value={firm}
-                onChange={(e) => setFirm(e.target.value)}
-                placeholder="Mitchell & Associates"
-                required
-              />
-            </div>
+            {!invite && (
+              <div className="space-y-2">
+                <Label htmlFor="firm">Firm name</Label>
+                <Input
+                  id="firm"
+                  type="text"
+                  value={firm}
+                  onChange={(e) => setFirm(e.target.value)}
+                  placeholder="Mitchell & Associates"
+                  required
+                />
+              </div>
+            )}
+            {invite && (
+              <div className="space-y-2">
+                <Label htmlFor="firm-invited">Organization</Label>
+                <Input id="firm-invited" type="text" value={firm} disabled />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Work email</Label>
               <Input
@@ -153,8 +216,7 @@ export default function SignupPage() {
         </div>
       </div>
 
-      <div className="hidden w-0 flex-1 lg:block">
-        <div className="relative flex h-full flex-col justify-center overflow-hidden bg-gradient-to-br from-[hsl(205_80%_20%)] to-[hsl(199_89%_30%)] p-12">
+      <div className="hidden w-0 flex-1 lg:block">        <div className="relative flex h-full flex-col justify-center overflow-hidden bg-gradient-to-br from-[hsl(205_80%_20%)] to-[hsl(199_89%_30%)] p-12">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute -left-20 top-20 h-72 w-72 rounded-full bg-white blur-3xl" />
             <div className="absolute right-0 bottom-10 h-96 w-96 rounded-full bg-white blur-3xl" />
@@ -185,5 +247,19 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-brand" />
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }

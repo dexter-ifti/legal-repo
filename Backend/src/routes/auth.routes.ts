@@ -30,7 +30,11 @@ router.post('/signup', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const { email, password, name } = parseResult.data;
-    const result = await registerUser(email, password, name);
+    // Optional invite token: when valid, the account joins the inviting
+    // tenant with the invited role instead of self-provisioning a new one.
+    const inviteToken =
+      typeof req.body?.inviteToken === 'string' ? req.body.inviteToken : null;
+    const result = await registerUser(email, password, name, inviteToken);
 
     return sendSuccess(res, result, 201);
   } catch (err: unknown) {

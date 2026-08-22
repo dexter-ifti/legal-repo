@@ -9,6 +9,7 @@ import {
   getOrganizationMembers,
   updateMemberRole,
 } from '../services/organization.service.js';
+import { createInvite, InviteUrlConfigError } from '../services/invite.service.js';
 import { sendSuccess, sendError } from '../utils/api-response.js';
 
 const router = Router();
@@ -25,6 +26,11 @@ const updateMemberRoleSchema = z.object({
   role: z.enum(['ADMIN', 'MEMBER'], {
     errorMap: () => ({ message: 'Role must be ADMIN or MEMBER' }),
   }),
+});
+
+const createInviteSchema = z.object({
+  email: z.string().email('Invalid email address format'),
+  role: z.enum(['ADMIN', 'MEMBER']).default('MEMBER'),
 });
 
 router.post('/', authenticateToken, async (req: TenantRequest, res: Response) => {
@@ -146,6 +152,62 @@ router.patch(
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to update member role';
       return sendError(res, message, 500, 'MEMBER_UPDATE_FAILED');
+    }
+  }
+);
+
+/**
+ * POST /api/v1/organizations/me/invites
+ * ADMIN-only. Creates a single-use invite bound to the authenticated tenant
+ * and returns the shareable signup link (frontend base URL comes from env).
+ */
+router.post(
+  '/me/invites',
+  authenticateToken,
+  requireTenant,
+  requireRole('ADMIN'),
+  async (req: TenantRequest, res: Response) => {
+    try {
+      const parseResult = createInviteSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const issue = parseResult.error.issues[0];
+        return sendError(res, issue.message, 400, 'VALIDATION_ERROR');
+      }
+
+      if (!req.organizationId || !req.user) {
+        return sendError(res, 'Organization identity missing', 403, 'TENANT_REQUIRED');
+      }
+
+      try {
+        const { invite, inviteUrl } = await createInvite(
+          req.organizationId,
+          req.user.id,
+          parseResult.data.email,
+          parseResult.data.role
+        );
+        return sendSuccess(
+          res,
+          {
+            invite: {
+              id: invite.id,
+              email: invite.email,
+              role: invite.role,
+              status: invite.status,
+              expiresAt: invite.expiresAt,
+            },
+            inviteUrl,
+          },
+          201
+        );
+      } catch (err: unknown) {
+        if (err instanceof InviteUrlConfigError) {
+          return sendError(res, err.message, 500, 'INVITE_URL_NOT_CONFIGURED');
+        }
+        throw err;
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create invite';
+      return sendError(res, message, 500, 'INVITE_CREATE_FAILED');
     }
   }
 );

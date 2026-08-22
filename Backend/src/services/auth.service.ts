@@ -2,6 +2,7 @@ import { IAuthProvider, AuthUser, AuthSession } from '../auth/AuthProvider.js';
 import { SupabaseAuthProvider } from '../auth/SupabaseAuthProvider.js';
 import { MockAuthProvider } from '../auth/MockAuthProvider.js';
 import { DEMO_ORGANIZATION_IDS } from '../auth/demo-users.js';
+import { acceptInvite } from './invite.service.js';
 import { prisma } from '../db/client.js';
 import type { Role } from '@prisma/client';
 
@@ -73,7 +74,8 @@ async function provisionUserTenant(
  */
 async function syncUserToDb(
   authUser: AuthUser,
-  fallbackName?: string
+  fallbackName?: string,
+  inviteToken?: string | null
 ): Promise<{ organizationId: string; role: Role; name: string }> {
   const displayName = authUser.name || fallbackName || 'Legal Advocate';
 
@@ -83,6 +85,23 @@ async function syncUserToDb(
 
   if (existing) {
     return { organizationId: existing.organizationId, role: existing.role, name: existing.name };
+  }
+
+  // Invited users join the inviting tenant with the invited role instead of
+  // self-provisioning a new one. Invalid/expired/consumed tokens fall back
+  // to standard provisioning.
+  const invite = await acceptInvite(inviteToken);
+  if (invite) {
+    await prisma.user.create({
+      data: {
+        id: authUser.id,
+        email: authUser.email,
+        name: displayName,
+        organizationId: invite.organizationId,
+        role: invite.role,
+      },
+    });
+    return { organizationId: invite.organizationId, role: invite.role, name: displayName };
   }
 
   const tenant = await provisionUserTenant(authUser, displayName);
@@ -103,7 +122,8 @@ async function syncUserToDb(
 export async function registerUser(
   email: string,
   password: string,
-  name?: string
+  name?: string,
+  inviteToken?: string | null
 ): Promise<{ user: AuthUser; session?: AuthSession; organizationId?: string }> {
   const providerResult = await getAuthProvider().signUp(email, password, name);
   const authUser = providerResult.user;
@@ -113,7 +133,7 @@ export async function registerUser(
   let displayName = name || authUser.name || 'Legal Advocate';
 
   try {
-    const synced = await syncUserToDb(authUser, name);
+    const synced = await syncUserToDb(authUser, name, inviteToken);
     organizationId = synced.organizationId;
     role = synced.role;
     displayName = synced.name;
