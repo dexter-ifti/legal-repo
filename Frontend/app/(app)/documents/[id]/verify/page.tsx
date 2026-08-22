@@ -174,6 +174,21 @@ export default function DocumentVerifyPage() {
 
   const entityFields = ENTITY_FIELDS.filter((key) => fieldMap.has(key));
   const hasEntityData = entityFields.length > 0;
+  const pageCount = fieldMap.get('page_count')?.fieldValue || null;
+  const isScanned = fieldMap.get('is_scanned')?.fieldValue === 'true';
+
+  // Extraction pipeline states — each gets an honest, distinct message.
+  const isNotProcessed = doc.processingStatus === 'UPLOADED' || doc.processingStatus === 'QUEUED';
+  const isInProgress =
+    doc.processingStatus === 'EXTRACTING' ||
+    doc.processingStatus === 'MATCHING' ||
+    doc.processingStatus === 'CLASSIFYING';
+  const isFailed =
+    doc.processingStatus === 'PROCESSING_FAILED' ||
+    doc.processingStatus === 'OCR_FAILED' ||
+    doc.processingStatus === 'UNSUPPORTED';
+  // Pipeline ran to completion but no legal entities matched our extractors.
+  const extractedNothing = !isNotProcessed && !isInProgress && !isFailed && !hasEntityData;
 
   let candidates: CaseCandidate[] = [];
   const rawCandidates = fieldMap.get('matching_candidates')?.fieldValue;
@@ -185,13 +200,8 @@ export default function DocumentVerifyPage() {
     }
   }
 
-  const isPending =
-    doc.processingStatus === 'UPLOADED' ||
-    doc.processingStatus === 'QUEUED' ||
-    doc.processingStatus === 'EXTRACTING' ||
-    doc.processingStatus === 'MATCHING' ||
-    doc.processingStatus === 'CLASSIFYING';
-  const isFailed = doc.processingStatus === 'PROCESSING_FAILED' || doc.processingStatus === 'OCR_FAILED';
+  const showReExtractButton =
+    isNotProcessed || isInProgress || isFailed || extractedNothing || hasEntityData;
 
   const showCandidates =
     !doc.caseId &&
@@ -292,7 +302,7 @@ export default function DocumentVerifyPage() {
                     Confirm these values match the original before filing
                   </CardDescription>
                 </div>
-                {(isPending || isFailed || !hasEntityData) && (
+                {showReExtractButton && (
                   <Button size="sm" onClick={runExtraction} disabled={extracting}>
                     {extracting ? (
                       <>
@@ -311,15 +321,49 @@ export default function DocumentVerifyPage() {
             </CardHeader>
             <CardContent>
               {!hasEntityData ? (
-                <div className="rounded-lg border border-dashed p-6 text-center">
-                  <ScanSearch className="mx-auto h-6 w-6 text-muted-foreground opacity-60" />
-                  <p className="mt-2 text-sm font-medium text-foreground">No extracted data yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {isPending
-                      ? 'Processing is in progress — this view updates after you re-extract.'
-                      : 'Run extraction to pull legal entities from this document.'}
-                  </p>
-                </div>
+                extractedNothing ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center">
+                    <ScanSearch className="mx-auto h-6 w-6 text-muted-foreground opacity-60" />
+                    <p className="mt-2 text-sm font-medium text-foreground">
+                      No legal entities detected
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Extraction completed successfully, but no case number, CNR, court, or party
+                      names were found in the{' '}
+                      {isScanned ? `OCR'd` : ''} first pages. This is expected for non-legal
+                      documents (resumes, invoices, general files). The document was not modified.
+                    </p>
+                  </div>
+                ) : isInProgress ? (
+                  <div className="rounded-lg border border-dashed p-6 text-center">
+                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand" />
+                    <p className="mt-2 text-sm font-medium text-foreground">
+                      Processing in progress
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      The pipeline ({doc.processingStatus.toLowerCase()}) is still running — check
+                      back shortly or re-run extraction.
+                    </p>
+                  </div>
+                ) : isFailed ? (
+                  <div className="rounded-lg border border-error/40 bg-error-soft/30 p-6 text-center">
+                    <AlertCircle className="mx-auto h-6 w-6 text-error" />
+                    <p className="mt-2 text-sm font-medium text-foreground">
+                      Extraction failed ({doc.processingStatus.replace(/_/g, ' ').toLowerCase()})
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Click Run Extraction to retry. Your original file is untouched.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-6 text-center">
+                    <ScanSearch className="mx-auto h-6 w-6 text-muted-foreground opacity-60" />
+                    <p className="mt-2 text-sm font-medium text-foreground">Not extracted yet</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Run extraction to pull legal entities from this document.
+                    </p>
+                  </div>
+                )
               ) : (
                 <div className="space-y-1">
                   {FIELD_CONFIG.map(({ key, label, icon: Icon }) => {
@@ -338,6 +382,21 @@ export default function DocumentVerifyPage() {
               )}
 
               <Separator className="my-4" />
+
+              {/* Extraction provenance — proof of what the pipeline actually did */}
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {pageCount && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {pageCount} page{pageCount === '1' ? '' : 's'} scanned
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-[10px]">
+                  {isScanned ? 'OCR' : 'Native text'}
+                </Badge>
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  {doc.documentType?.toLowerCase() || 'Unclassified'}
+                </Badge>
+              </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
                 <div>

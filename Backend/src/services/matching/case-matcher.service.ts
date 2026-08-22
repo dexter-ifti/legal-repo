@@ -52,7 +52,7 @@ export class CaseMatcherService {
     const candidates = await this.candidateService.generateCandidates(organizationId, signals);
 
     let matchStatus: MatchStatus = MatchStatus.NO_MATCH;
-    let processingStatus: ProcessingStatus = ProcessingStatus.MATCHING;
+    let processingStatus: ProcessingStatus = ProcessingStatus.PROCESSING_COMPLETED;
     let matchedCaseId: string | null = null;
     let matchConfidence = 0;
 
@@ -77,10 +77,10 @@ export class CaseMatcherService {
         matchedCaseId = null;
         processingStatus = ProcessingStatus.AWAITING_CONFIRMATION;
       } else {
-        // Low confidence -> NO_MATCH
+        // Low confidence -> NO_MATCH; processing is complete, nothing to review
         matchStatus = MatchStatus.NO_MATCH;
         matchedCaseId = null;
-        processingStatus = ProcessingStatus.MATCHING;
+        processingStatus = ProcessingStatus.PROCESSING_COMPLETED;
       }
     }
 

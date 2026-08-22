@@ -62,14 +62,14 @@ test('Express Document Understanding Pipeline Integration Tests (Milestone 4)', 
     assert.ok(docIdOrgA);
   });
 
-  await t.test('POST /api/v1/documents/:id/extract processes text, metadata, classification, and sets status to MATCHING', async () => {
+  await t.test('POST /api/v1/documents/:id/extract processes text, metadata, classification, and ends in a terminal status', async () => {
     const res = await request(app)
       .post(`/api/v1/documents/${docIdOrgA}/extract`)
       .set('Authorization', `Bearer ${tokenOrgA}`);
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.success, true);
-    assert.strictEqual(res.body.data.status, 'MATCHING');
+    assert.strictEqual(res.body.data.status, 'PROCESSING_COMPLETED');
     assert.ok(res.body.data.document.documentType);
 
     // Verify DB Document status and metadata rows
@@ -79,7 +79,7 @@ test('Express Document Understanding Pipeline Integration Tests (Milestone 4)', 
     });
 
     assert.ok(dbDoc);
-    assert.strictEqual(dbDoc.processingStatus, 'MATCHING');
+    assert.strictEqual(dbDoc.processingStatus, 'PROCESSING_COMPLETED');
     assert.ok(dbDoc.documentType);
 
     // Check extracted metadata fields in DB

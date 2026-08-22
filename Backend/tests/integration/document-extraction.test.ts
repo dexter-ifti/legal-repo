@@ -72,14 +72,14 @@ test('Express Document Text Extraction API Integration Tests', async (t) => {
     }).catch(() => {});
   });
 
-  await t.test('POST /api/v1/documents/:id/extract extracts text, metadata, classifies, and updates status to MATCHING', async () => {
+  await t.test('POST /api/v1/documents/:id/extract extracts text, metadata, classifies, and ends in a terminal status', async () => {
     const res = await request(app)
       .post(`/api/v1/documents/${docIdOrgA}/extract`)
       .set('Authorization', `Bearer ${tokenOrgA}`);
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.success, true);
-    assert.strictEqual(res.body.data.status, 'MATCHING');
+    assert.strictEqual(res.body.data.status, 'PROCESSING_COMPLETED');
     assert.ok(res.body.data.text.includes('HIGH COURT OF BOMBAY') || res.body.data.text.includes('COMMERCIAL SUIT'));
 
     // Check DB record
@@ -87,7 +87,7 @@ test('Express Document Text Extraction API Integration Tests', async (t) => {
       where: { id: docIdOrgA },
       include: { metadata: true },
     });
-    assert.strictEqual(dbDoc?.processingStatus, 'MATCHING');
+    assert.strictEqual(dbDoc?.processingStatus, 'PROCESSING_COMPLETED');
 
     const textMeta = dbDoc?.metadata.find((m) => m.fieldName === 'extracted_text');
     assert.ok(textMeta);
