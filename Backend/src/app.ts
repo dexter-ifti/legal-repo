@@ -11,6 +11,7 @@ import { searchRouter } from './routes/search.routes.js';
 import { auditRouter } from './routes/audit.routes.js';
 import { pilotRouter } from './routes/pilot.routes.js';
 import inviteRoutes from './routes/invite.routes.js';
+import { requestLogger } from './middleware/request-logger.middleware.js';
 import { sendError } from './utils/api-response.js';
 
 dotenv.config();
@@ -28,6 +29,7 @@ export const createApp = (): Express => {
   );
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use(requestLogger);
 
   // Base Health & Root Routes
   app.use('/', healthRoutes);

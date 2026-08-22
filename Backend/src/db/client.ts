@@ -5,10 +5,17 @@ declare global {
   var prismaGlobal: PrismaClient | undefined;
 }
 
+// SQL query logging is opt-in via PRISMA_LOG_QUERIES=true — it is far too
+// noisy (and a potential data-exposure risk) for everyday output.
+const logConfig =
+  process.env.PRISMA_LOG_QUERIES === 'true'
+    ? ['query', 'error', 'warn']
+    : ['error', 'warn'];
+
 export const prisma =
   globalThis.prismaGlobal ??
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: logConfig as ('query' | 'error' | 'warn')[],
   });
 
 if (process.env.NODE_ENV !== 'production') {
