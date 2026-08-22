@@ -134,10 +134,10 @@ Acceptance:
 - target member must belong to the same tenant (cross-tenant returns 404)
 - admins cannot change their own admin role (org is never left without an admin)
 - Settings → Organization tab lists real members with role controls for Admins
-- new signups join as MEMBER; organization creators become ADMIN
-- integration tests cover promotion, invalid roles, cross-tenant targets, and non-admin rejection
+- **self-signup provisions a dedicated organization with the creator as ADMIN** (users never auto-join an existing tenant; demo users land in the deterministic demo org)
+- integration tests cover tenant provisioning, invalid roles, cross-tenant targets, and cross-tenant admin rejection
 
-Out of scope (future): email invitations, member removal, ADVOCATE/CLERK granular permissions.
+Out of scope (future): email invitations / org codes for joining an existing organization, member removal, ADVOCATE/CLERK granular permissions.
 
 ---
 

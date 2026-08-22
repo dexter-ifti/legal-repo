@@ -3,6 +3,7 @@ import { SupabaseAuthProvider } from '../auth/SupabaseAuthProvider.js';
 import { MockAuthProvider } from '../auth/MockAuthProvider.js';
 import { DEMO_ORGANIZATION_IDS } from '../auth/demo-users.js';
 import { prisma } from '../db/client.js';
+import type { Role } from '@prisma/client';
 
 let currentAuthProvider: IAuthProvider;
 
@@ -26,6 +27,79 @@ export function getAuthProvider(): IAuthProvider {
   return currentAuthProvider;
 }
 
+const isDemoEmail = (email: string): boolean =>
+  email.toLowerCase().includes('sarah.mitchell') || email.toLowerCase().includes('demo');
+
+/**
+ * Provisions the tenant for a newly persisted user.
+ *
+ * Tenant policy: every self-signup creates a dedicated new organization with
+ * the creator as ADMIN — users never silently join an existing tenant.
+ * Joining an existing organization will be possible only via a future
+ * invite flow. Demo users are provisioned into the deterministic demo org.
+ */
+async function provisionUserTenant(
+  authUser: Pick<AuthUser, 'id' | 'email'>,
+  displayName: string
+): Promise<{ organizationId: string; role: Role }> {
+  const isDemo = isDemoEmail(authUser.email);
+
+  let orgId: string;
+  let role: Role;
+
+  if (isDemo) {
+    const demoOrg = await prisma.organization.upsert({
+      where: { id: DEMO_ORGANIZATION_IDS.lexflowDemo },
+      update: {},
+      create: { id: DEMO_ORGANIZATION_IDS.lexflowDemo, name: 'LexFlow Demo Chambers' },
+    });
+    orgId = demoOrg.id;
+    role = 'ADMIN';
+  } else {
+    const baseName = displayName.trim() || authUser.email.split('@')[0];
+    const org = await prisma.organization.create({
+      data: { name: `${baseName}'s Chambers` },
+    });
+    orgId = org.id;
+    role = 'ADMIN';
+  }
+
+  return { organizationId: orgId, role };
+}
+
+/**
+ * Syncs an authenticated provider user into the local database,
+ * provisioning a dedicated tenant on first sight (see provisionUserTenant).
+ */
+async function syncUserToDb(
+  authUser: AuthUser,
+  fallbackName?: string
+): Promise<{ organizationId: string; role: Role; name: string }> {
+  const displayName = authUser.name || fallbackName || 'Legal Advocate';
+
+  const existing = await prisma.user.findUnique({
+    where: { email: authUser.email },
+  });
+
+  if (existing) {
+    return { organizationId: existing.organizationId, role: existing.role, name: existing.name };
+  }
+
+  const tenant = await provisionUserTenant(authUser, displayName);
+
+  await prisma.user.create({
+    data: {
+      id: authUser.id,
+      email: authUser.email,
+      name: displayName,
+      organizationId: tenant.organizationId,
+      role: tenant.role,
+    },
+  });
+
+  return { organizationId: tenant.organizationId, role: tenant.role, name: displayName };
+}
+
 export async function registerUser(
   email: string,
   password: string,
@@ -39,34 +113,10 @@ export async function registerUser(
   let displayName = name || authUser.name || 'Legal Advocate';
 
   try {
-    let dbUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!dbUser) {
-      let defaultOrg = await prisma.organization.findFirst();
-      if (!defaultOrg) {
-        defaultOrg = await prisma.organization.create({
-          data: {
-            name: 'Default Legal Chambers',
-          },
-        });
-      }
-
-      dbUser = await prisma.user.create({
-        data: {
-          id: authUser.id,
-          email: authUser.email,
-          name: displayName,
-          organizationId: defaultOrg.id,
-          role: 'MEMBER',
-        },
-      });
-    }
-
-    organizationId = dbUser.organizationId;
-    role = dbUser.role;
-    displayName = dbUser.name;
+    const synced = await syncUserToDb(authUser, name);
+    organizationId = synced.organizationId;
+    role = synced.role;
+    displayName = synced.name;
   } catch (dbErr) {
     console.warn('[AuthService] Database sync warning:', dbErr instanceof Error ? dbErr.message : dbErr);
   }
@@ -101,34 +151,10 @@ export async function loginUser(
   let displayName = authUser.name || 'Legal Advocate';
 
   try {
-    let dbUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!dbUser) {
-      let defaultOrg = await prisma.organization.findFirst();
-      if (!defaultOrg) {
-        defaultOrg = await prisma.organization.create({
-          data: {
-            name: 'Default Legal Chambers',
-          },
-        });
-      }
-
-      dbUser = await prisma.user.create({
-        data: {
-          id: authUser.id,
-          email: authUser.email,
-          name: displayName,
-          organizationId: defaultOrg.id,
-          role: 'MEMBER',
-        },
-      });
-    }
-
-    organizationId = dbUser.organizationId;
-    role = dbUser.role;
-    displayName = dbUser.name;
+    const synced = await syncUserToDb(authUser);
+    organizationId = synced.organizationId;
+    role = synced.role;
+    displayName = synced.name;
   } catch (dbErr) {
     console.warn('[AuthService] Database sync warning:', dbErr instanceof Error ? dbErr.message : dbErr);
   }

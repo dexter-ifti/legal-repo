@@ -51,6 +51,7 @@ Correct legal documents automatically identified and filed into the correct case
 - Supabase Auth behind vendor-flexible `IAuthProvider` interface
 - Object storage abstraction (`IStorageProvider`, `SupabaseStorageProvider`) — cloud-only; local disk storage is not supported and all storage operations fail closed separate from database
 - Server-side multi-tenant authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`)
+- Signup-per-tenant model: self-signup provisions a dedicated tenant (creator = ADMIN); cross-org joining is deferred to a future invite flow
  - Asynchronous document processing pipeline architecture
  - **Automatic post-upload processing**: every upload triggers the extract -> OCR -> classify -> match pipeline asynchronously (atomic claim, idempotent, retryable via `/documents/:id/retry`)
  - Page-limited OCR: scanned documents are OCR'd only for the leading `OCR_MAX_PAGES` (default 2) pages via `pdf-lib` slicing before the Mistral OCR call
@@ -68,7 +69,8 @@ Correct legal documents automatically identified and filed into the correct case
 
 ### Milestone 2 — Multi-Tenancy & Case Management (TASK-006 — TASK-011)
 - `Organization` domain model & tenant-scoping isolation logic.
-- User membership with roles (`ADMIN`, `MEMBER`, `ADVOCATE`, `CLERK`; signups join as `MEMBER`, organization creators become `ADMIN`) and APIs: `GET /api/v1/organizations/me/members` plus ADMIN-only `PATCH /api/v1/organizations/me/members/:userId` for role changes (self-demotion guard prevents removing an org's last admin).
+- Tenant provisioning policy: **every self-signup creates a dedicated new organization with the creator as ADMIN** — users never silently join an existing tenant (joining existing orgs will require the future invite flow). Demo users are provisioned into the deterministic demo organization.
+- User membership with roles (`ADMIN`, `MEMBER`, `ADVOCATE`, `CLERK`) and APIs: `GET /api/v1/organizations/me/members` plus ADMIN-only `PATCH /api/v1/organizations/me/members/:userId` for role changes (self-demotion guard prevents removing an org's last admin).
 - Team & role management UI in Settings → Organization (real data; demo users see a notice).
 - `Case` domain model and Express CRUD routes (`POST`, `GET`, `GET :id`, `PATCH`, `DELETE`).
 - Zod request validation schemas & server-side authorization middleware (`buildTenantWhereClause`, `authorizeResourceOwnership`).

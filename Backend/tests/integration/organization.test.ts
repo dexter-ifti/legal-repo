@@ -29,6 +29,29 @@ test('Express Organization & Tenant Isolation Integration Tests', async (t) => {
     tokenB = resB.body.data.session.token;
   });
 
+  await t.test('Self-signup provisions a dedicated organization with creator as ADMIN', async () => {
+    // Each signup must land in its own tenant — users never silently share one
+    const orgA = await request(app)
+      .get('/api/v1/organizations/me')
+      .set('Authorization', `Bearer ${tokenA}`);
+    const orgB = await request(app)
+      .get('/api/v1/organizations/me')
+      .set('Authorization', `Bearer ${tokenB}`);
+
+    assert.strictEqual(orgA.status, 200);
+    assert.strictEqual(orgB.status, 200);
+    assert.notStrictEqual(orgA.body.data.organization.id, orgB.body.data.organization.id);
+
+    // Creator is ADMIN of their own provisioned tenant
+    const membersA = await request(app)
+      .get('/api/v1/organizations/me/members')
+      .set('Authorization', `Bearer ${tokenA}`);
+    assert.strictEqual(membersA.status, 200);
+    const me = membersA.body.data.members.find((m: { email: string }) => m.email === userA.email);
+    assert.ok(me, 'Creator must be a member of their provisioned organization');
+    assert.strictEqual(me.role, 'ADMIN');
+  });
+
   await t.test('GET /api/v1/organizations/me returns active organization profile', async () => {
     const res = await request(app)
       .get('/api/v1/organizations/me')
@@ -134,24 +157,20 @@ test('Express Organization & Tenant Isolation Integration Tests', async (t) => {
     assert.strictEqual(crossTenant.body.error.code, 'MEMBER_NOT_FOUND');
   });
 
-  await t.test('PATCH members/:userId requires ADMIN role', async () => {
-    // User B is a MEMBER in the default org and cannot manage roles there
-    const resB = await request(app)
+  await t.test('PATCH members/:userId is scoped to own organization even for another ADMIN', async () => {
+    // User B is an ADMIN of their own provisioned organization, but must not
+    // be able to modify members of User A's organization.
+    const membersA = await request(app)
       .get('/api/v1/organizations/me/members')
-      .set('Authorization', `Bearer ${tokenB}`);
-    const memberOfB = resB.body.data.members.find(
-      (m: { email: string }) => m.email === userB.email
-    );
+      .set('Authorization', `Bearer ${tokenA}`);
+    const memberOfA = membersA.body.data.members[0];
 
-    if (memberOfB) {
-      const attempt = await request(app)
-        .patch(`/api/v1/organizations/me/members/${memberOfB.id}`)
-        .set('Authorization', `Bearer ${tokenB}`)
-        .send({ role: 'ADMIN' });
-      assert.ok(
-        [403, 400].includes(attempt.status),
-        `Expected 403 FORBIDDEN or 400 SELF_ROLE_CHANGE, got ${attempt.status}`
-      );
-    }
+    const attempt = await request(app)
+      .patch(`/api/v1/organizations/me/members/${memberOfA.id}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ role: 'MEMBER' });
+
+    assert.strictEqual(attempt.status, 404);
+    assert.strictEqual(attempt.body.error.code, 'MEMBER_NOT_FOUND');
   });
 });
