@@ -1,11 +1,11 @@
 import { IStorageProvider } from './StorageProvider.js';
-import { SupabaseStorageProvider } from './SupabaseStorageProvider.js';
+import { R2StorageProvider } from './R2StorageProvider.js';
 import { StorageObjectNotFoundError } from './errors.js';
 
 let activeProviderInstance: IStorageProvider | null = null;
 
 /**
- * Returns the configured cloud storage provider (Supabase Storage).
+ * Returns the configured cloud storage provider (Cloudflare R2, S3-compatible).
  * Local disk storage is not supported: all legal documents must be
  * stored in private cloud object storage.
  */
@@ -14,15 +14,15 @@ export const getStorageProvider = (): IStorageProvider => {
     return activeProviderInstance;
   }
 
-  const providerType = (process.env.STORAGE_PROVIDER || 'supabase').toLowerCase();
-  if (providerType !== 'supabase') {
+  const providerType = (process.env.STORAGE_PROVIDER || 'r2').toLowerCase();
+  if (providerType !== 'r2') {
     throw new Error(
-      `Unsupported STORAGE_PROVIDER "${providerType}". Only Supabase Storage ("supabase") is supported.`
+      `Unsupported STORAGE_PROVIDER "${providerType}". Only Cloudflare R2 ("r2") is supported.`
     );
   }
 
-  // Throws a clear configuration error if Supabase env vars are missing.
-  activeProviderInstance = new SupabaseStorageProvider();
+  // Throws a clear configuration error if R2 env vars are missing.
+  activeProviderInstance = new R2StorageProvider();
 
   return activeProviderInstance;
 };

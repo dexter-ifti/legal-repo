@@ -164,7 +164,7 @@ The platform enforces zero-trust tenant boundary protection using server-side au
 Legal document files are stored securely using a provider-agnostic object storage service (`Backend/src/storage/`):
 
 - **`IStorageProvider`**: TypeScript interface decoupling business logic from cloud vendors. Supports `uploadFile`, `getSignedUrl`, `deleteFile`, and `getFileBuffer`.
-- **`SupabaseStorageProvider`**: Production private cloud storage provider wrapping Supabase private buckets. Cloud-only: local disk storage is not supported; all storage operations fail closed on error.
+- **`R2StorageProvider`**: Production private cloud storage provider for Cloudflare R2 (S3-compatible). Cloud-only: local disk storage is not supported; all storage operations fail closed on error.
 - **Tenant Path Isolation**: Enforces tenant key structure: `${organizationId}/${folder}/${uniqueId}_${fileName}`.
 - **Private Access**: All document downloads require server authorization and return temporary signed URLs (`getSignedUrl`).
 
