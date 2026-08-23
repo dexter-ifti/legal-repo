@@ -122,7 +122,10 @@ export async function runIngestionPipeline(
       if (!batch) break;
       const [from, to] = batch;
 
-      const batchTexts = await extractPagesInRange(buffer, from, to, ocrProvider);
+      const batchTexts =
+        INGESTION_CONFIG.maxOcrPages > 0 && discoveryPageTexts.size >= INGESTION_CONFIG.maxOcrPages
+          ? await extractNativePagesInRange(buffer, from, to)
+          : await extractPagesInRange(buffer, from, to, ocrProvider);
       for (const [pageNumber, text] of batchTexts) {
         discoveryPageTexts.set(pageNumber, text);
       }
@@ -165,7 +168,9 @@ export async function runIngestionPipeline(
     //    OCR only for pages that need it, stored page-level.
     // ------------------------------------------------------------------
     await enterStage(documentId, 'EXTRACTING');
-    const pages = await extractAllPages(buffer, inspection, ocrProvider, {});
+    const pages = await extractAllPages(buffer, inspection, ocrProvider, {
+      maxOcrPages: INGESTION_CONFIG.maxOcrPages > 0 ? INGESTION_CONFIG.maxOcrPages : undefined,
+    });
 
     // Persist page rows idempotently (unique on documentId+pageNumber)
     for (const page of pages) {
@@ -366,7 +371,7 @@ async function enterStage(documentId: string, stage: PipelineStage): Promise<voi
 }
 
 /** Native extraction for a specific range of pages; OCR fallback per page. */
-async function extractPagesInRange(
+export async function extractPagesInRange(
   buffer: Buffer,
   from: number,
   to: number,
@@ -471,4 +476,30 @@ function dominantLanguage(languages: Array<string | undefined>): string {
     }
   }
   return best;
+}
+
+/** Native-only range extraction (no OCR) — used when OCR budget is exhausted. */
+async function extractNativePagesInRange(buffer: Buffer, from: number, to: number): Promise<Map<number, string>> {
+  const result = new Map<number, string>();
+
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const loadingTask = pdfjs.getDocument({ data: new Uint8Array(buffer), useSystemFonts: false });
+  const doc = await loadingTask.promise;
+
+  for (let pageNumber = from; pageNumber <= Math.min(to, doc.numPages); pageNumber++) {
+    try {
+      const page = await doc.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const text = pdfItemsToText(content.items);
+      if (text.trim()) {
+        result.set(pageNumber, text);
+      }
+    } catch {
+      // Skip — no OCR budget.
+    }
+  }
+  await doc.cleanup();
+  void loadingTask.destroy();
+
+  return result;
 }

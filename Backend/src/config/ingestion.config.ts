@@ -36,4 +36,10 @@ export const INGESTION_CONFIG = {
 
   /** Max segments sent to Mistral Small per document (cost control). */
   maxSegmentClassifications: num(process.env.MAX_SEGMENT_CLASSIFICATIONS, 12),
+
+  /**
+   * Hard cap on pages OCR'd per document (cost control).
+   * 0 or unset = unlimited. Tests set this low to bound runtime/spend.
+   */
+  maxOcrPages: num(process.env.INGESTION_MAX_OCR_PAGES, 0),
 } as const;

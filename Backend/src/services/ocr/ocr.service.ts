@@ -138,10 +138,12 @@ const DEFAULT_MAX_PAGES = 2;
 
 /**
  * Factory function to retrieve active OCR provider based on configuration.
- * Real OCR is never used in test mode, regardless of key presence.
+ * Real OCR is never used in test mode unless FORCE_REAL_OCR=true is
+ * explicitly set (e.g., fixture regression tests that require genuine OCR).
  */
 export function getOcrProvider(): IOcrProvider {
-  if (process.env.MISTRAL_API_KEY && process.env.NODE_ENV !== 'test') {
+  const forceRealInTest = process.env.FORCE_REAL_OCR === 'true' && !!process.env.MISTRAL_API_KEY;
+  if (process.env.MISTRAL_API_KEY && (process.env.NODE_ENV !== 'test' || forceRealInTest)) {
     return new MistralOcrProvider();
   }
   return new MockOcrProvider();

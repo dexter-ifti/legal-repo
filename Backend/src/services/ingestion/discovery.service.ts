@@ -146,6 +146,29 @@ export function detectIndexPage(pageText: string): { detected: boolean; entries:
     headerDetected = true;
   }
 
+  // Style 2: markdown-table entries from OCR — "| 5 | Memo of petition | 5-15 |".
+  // Real scanned indexes commonly OCR into table format (spec §13).
+  if (headerDetected && entries.length === 0) {
+    for (const line of pageText.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith('|')) continue;
+      if (/^\|[\s:|-]+$/.test(trimmed)) continue; // separator row
+
+      const cells = trimmed.split('|').map((c) => c.trim()).filter(Boolean);
+      if (cells.length < 2) continue;
+
+      const title = cells.find((c) => /[A-Za-z]{3,}/.test(c));
+      if (!title || title.length < 3) continue;
+
+      const pageCell = cells.filter((c) => c !== title).find((c) => /\d{1,3}/.test(c));
+      const pageHintMatch = pageCell?.match(/\d{1,3}/);
+      const pageHint = pageHintMatch ? Number(pageHintMatch[0]) : null;
+
+      entries.push({ title: title.replace(/\*\*/g, '').trim(), pageHint });
+      if (entries.length >= 50) break;
+    }
+  }
+
   return { detected: headerDetected && entries.length > 0, entries };
 }
 
