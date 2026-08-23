@@ -105,6 +105,13 @@ export class MistralOcrProvider implements IOcrProvider {
       const extractedText = stripInvalidTextChars(
         data.pages?.map((p) => p.markdown || p.text || '').join('\n\n') || ''
       );
+
+      // Page-level breakdown preserves provenance for the ingestion pipeline.
+      const pages = (data.pages || []).map((p, index) => ({
+        pageNumber: index + 1,
+        text: stripInvalidTextChars(p.markdown || p.text || ''),
+        confidence: 0.98,
+      }));
       const pageCount = data.pages?.length || 1;
 
       return {
@@ -112,6 +119,7 @@ export class MistralOcrProvider implements IOcrProvider {
         confidence: 0.98,
         pageCount,
         provider: 'mistral-ocr',
+        pages: pages.length > 0 ? pages : undefined,
         rawResponse: data as unknown as Record<string, unknown>,
       };
     } catch (err: unknown) {

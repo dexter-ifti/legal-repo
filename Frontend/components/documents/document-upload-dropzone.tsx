@@ -122,56 +122,111 @@ export function DocumentUploadDropzone({
     if (!selectedFile) return;
 
     setIsUploading(true);
-    setUploadProgress(15);
+    setUploadProgress(5);
     setErrorMessage(null);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const authHeaders = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      if (selectedCaseId && selectedCaseId !== 'unassigned') {
-        formData.append('caseId', selectedCaseId);
-      }
-      if (documentType) {
-        formData.append('documentType', documentType);
-      }
+      // Two-phase direct-to-R2 upload (init -> PUT -> complete).
+      // The browser uploads bytes straight to cloud storage; the backend
+      // only authorizes and coordinates.
 
-      // Simulate upload progress steps
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => (prev >= 85 ? 85 : prev + 15));
-      }, 150);
+      // 1. Hash the file for pre-upload deduplication.
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const digest = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const sha256 = Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      setUploadProgress(15);
 
-      const response = await fetch(`${API_URL}/api/v1/documents/upload`, {
+      // 2. Initialize: validate + create record + get presigned upload URL.
+      const initRes = await fetch(`${API_URL}/api/v1/documents/upload/init`, {
         method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          size: selectedFile.size,
+          mime_type: selectedFile.type || 'application/pdf',
+          ...(selectedCaseId && selectedCaseId !== 'unassigned' ? { caseId: selectedCaseId } : {}),
+          ...(documentType ? { documentType } : {}),
+          sha256,
+        }),
       });
 
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      const data = await response.json();
-
-      if (!response.ok && !data.data?.isDuplicate) {
-        throw new Error(data.error?.message || 'Failed to upload document');
+      const initData = await initRes.json();
+      if (!initRes.ok) {
+        throw new Error(initData.error?.message || 'Failed to initialize upload');
       }
 
-      const result: UploadedDocumentResult = data.data;
-      setUploadResult(result);
+      if (initData.data.isDuplicate) {
+        
+        setUploadProgress(100);
+        toast.warning('Duplicate file detected in your organization.');
+        setIsUploading(false);
+        if (onUploadSuccess) {
+          onUploadSuccess({ ...initData.data.document, isDuplicate: true });
+        }
+        return;
+      }
+
+      const { documentId, uploadUrl }: { documentId: string; uploadUrl: string } = initData.data;
+
+      // 3. Upload directly to R2 with progress tracking.
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/pdf');
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            setUploadProgress(15 + Math.round((event.loaded / event.total) * 70));
+          }
+        };
+        xhr.onload = () =>
+          xhr.status >= 200 && xhr.status < 300
+            ? resolve()
+            : reject(new Error(`Storage upload failed (Status ${xhr.status})`));
+        xhr.onerror = () => reject(new Error('Unable to reach storage'));
+        xhr.send(selectedFile);
+      });
+
+      setUploadProgress(90);
+
+      // 4. Complete: backend verifies object and starts ingestion pipeline.
+      const completeRes = await fetch(`${API_URL}/api/v1/documents/${documentId}/upload/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ size: selectedFile.size }),
+      });
+
+      const completeData = await completeRes.json();
+      if (!completeRes.ok) {
+        throw new Error(completeData.error?.message || 'Failed to finalize upload');
+      }
+
+      setUploadProgress(100);
+      toast.success('Document uploaded — ingestion started!');
       setIsUploading(false);
 
-      if (result.isDuplicate) {
-        toast.warning('Duplicate file detected in your organization.');
-      } else {
-        toast.success('Document uploaded successfully!');
-      }
-
       if (onUploadSuccess) {
-        onUploadSuccess(result);
+        onUploadSuccess({
+          id: documentId,
+          organizationId: '',
+          caseId: selectedCaseId && selectedCaseId !== 'unassigned' ? selectedCaseId : null,
+          originalFilename: selectedFile.name,
+          storageKey: '',
+          mimeType: selectedFile.type || 'application/pdf',
+          fileSize: selectedFile.size,
+          sha256,
+          documentType: documentType || 'UNCLASSIFIED',
+          processingStatus: 'QUEUED',
+          matchStatus: 'NOT_STARTED',
+          uploadedAt: new Date().toISOString(),
+          isDuplicate: false,
+        });
       }
     } catch (err: unknown) {
       setIsUploading(false);

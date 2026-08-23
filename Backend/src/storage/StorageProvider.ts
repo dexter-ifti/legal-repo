@@ -36,4 +36,14 @@ export interface IStorageProvider {
    * Fetches raw object file buffer from storage.
    */
   getFileBuffer(storageKey: string): Promise<Buffer>;
+
+  /**
+   * Generates a short-lived presigned PUT URL for direct browser uploads.
+   */
+  getUploadSignedUrl(storageKey: string, contentType: string, expiresInSeconds?: number): Promise<string>;
+
+  /**
+   * Verifies an object exists; returns its size in bytes or null if missing.
+   */
+  headObject(storageKey: string): Promise<{ sizeBytes: number } | null>;
 }

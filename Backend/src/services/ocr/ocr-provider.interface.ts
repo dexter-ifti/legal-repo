@@ -8,11 +8,20 @@ export interface OcrOptions {
   maxPages?: number;
 }
 
+export interface OcrPageResult {
+  pageNumber?: number;
+  text: string;
+  confidence?: number;
+  language?: string;
+}
+
 export interface OcrResult {
   text: string;
   confidence: number;
   pageCount: number;
   provider: string;
+  /** Page-level breakdown when the provider supports it (spec §20 provenance). */
+  pages?: OcrPageResult[];
   rawResponse?: Record<string, unknown>;
   error?: string;
 }

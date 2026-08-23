@@ -22,11 +22,19 @@ enum InviteStatus {
 }
 
 enum ProcessingStatus {
+  CREATED
+  UPLOADING
   UPLOADED
   QUEUED
+  INSPECTING
+  DISCOVERING
   EXTRACTING
   CLASSIFYING
   MATCHING
+  SEGMENTING
+  NORMALIZING
+  INDEXING
+  READY
   AWAITING_CONFIRMATION
   FILED
   PROCESSING_COMPLETED
@@ -132,7 +140,7 @@ model Document {
   storageKey       String           @map("storage_key")
   mimeType         String?          @map("mime_type")
   fileSize         BigInt?          @map("file_size")
-  sha256           String
+  sha256           String?
   documentType     String?          @map("document_type")
   documentDate     DateTime?        @map("document_date") @db.Date
   processingStatus ProcessingStatus @default(UPLOADED) @map("processing_status")
@@ -142,10 +150,19 @@ model Document {
   uploadedAt       DateTime         @default(now()) @map("uploaded_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
+  // Ingestion pipeline (staged, retryable)
+  pipelineStage   String?  @map("pipeline_stage")
+  stageAttempts   Int      @default(0) @map("stage_attempts")
+  stageError      String?  @map("stage_error")
+  discoveryJson   String?  @map("discovery_json")
+  language        String?
+
   organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   case             Case?            @relation(fields: [caseId], references: [id], onDelete: SetNull)
   uploader         User             @relation("UploadedDocs", fields: [uploadedBy], references: [id], onDelete: Restrict)
   metadata         DocumentMetadata[]
+  pages            DocumentPage[]
+  segments         DocumentSegment[]
 
   @@index([organizationId])
   @@index([organizationId, sha256])
@@ -167,6 +184,50 @@ model DocumentMetadata {
 
   @@index([documentId])
   @@map("document_metadata")
+}
+
+model DocumentPage {
+  id                String   @id @default(uuid()) @db.Uuid
+  documentId        String   @map("document_id") @db.Uuid
+  pageNumber        Int      @map("page_number")
+  rawText           String?  @map("raw_text")
+  normalizedText    String?  @map("normalized_text")
+  extractionMethod  String   @default("pending") @map("extraction_method")
+  ocrProvider       String?  @map("ocr_provider")
+  ocrLanguage       String?  @map("ocr_language")
+  ocrConfidence     Decimal? @map("ocr_confidence") @db.Decimal(5, 4)
+  language          String?
+  wordCount         Int      @default(0) @map("word_count")
+  charCount         Int      @default(0) @map("char_count")
+  printedPageNumber Int?     @map("printed_page_number")
+  attemptCount      Int      @default(0) @map("attempt_count")
+  error             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, pageNumber])
+  @@index([documentId])
+  @@map("document_pages")
+}
+
+model DocumentSegment {
+  id           String   @id @default(uuid()) @db.Uuid
+  documentId   String   @map("document_id") @db.Uuid
+  segmentType  String   @map("segment_type")
+  title        String?
+  startPage    Int      @map("start_page")
+  endPage      Int      @map("end_page")
+  confidence   Decimal? @db.Decimal(5, 4)
+  metadataJson String?  @map("metadata_json")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_segments")
 }
 
 model AuditEvent {

@@ -66,6 +66,38 @@ export const getStorageSignedUrl = async (
 };
 
 /**
+ * Generates a short-lived presigned PUT URL for direct browser uploads.
+ */
+export const getUploadSignedUrl = async (
+  storageKey: string,
+  contentType: string,
+  expiresInSeconds?: number
+): Promise<string> => {
+  try {
+    return await getStorageProvider().getUploadSignedUrl(storageKey, contentType, expiresInSeconds);
+  } catch (err: unknown) {
+    throw new Error(
+      `Storage upload URL generation failed on configured storage provider: ${errorMessage(err)}`
+    );
+  }
+};
+
+/**
+ * Verifies an object exists; returns its size or null when missing.
+ */
+export const headStorageObject = async (
+  storageKey: string
+): Promise<{ sizeBytes: number } | null> => {
+  try {
+    return await getStorageProvider().headObject(storageKey);
+  } catch (err: unknown) {
+    throw new Error(
+      `Storage head request failed on configured storage provider: ${errorMessage(err)}`
+    );
+  }
+};
+
+/**
  * Deletes an object from private storage.
  */
 export const deleteStorageObject = async (storageKey: string): Promise<boolean> => {

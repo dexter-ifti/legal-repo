@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl as s3GetSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
@@ -86,6 +87,43 @@ export class R2StorageProvider implements IStorageProvider {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       throw new Error(`Failed to generate signed URL for ${storageKey}: ${message}`);
+    }
+  }
+
+  /**
+   * Generates a short-lived presigned PUT URL so browsers can upload
+   * directly to R2 without proxying bytes through the API (spec §5-§6).
+   */
+  async getUploadSignedUrl(
+    storageKey: string,
+    contentType: string,
+    expiresInSeconds: number = 600
+  ): Promise<string> {
+    try {
+      return await s3GetSignedUrl(
+        this.client,
+        new PutObjectCommand({ Bucket: this.bucket, Key: storageKey, ContentType: contentType }),
+        { expiresIn: expiresInSeconds }
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Failed to generate upload URL for ${storageKey}: ${message}`);
+    }
+  }
+
+  /** Verifies an object exists and returns its size in bytes. Null if missing. */
+  async headObject(storageKey: string): Promise<{ sizeBytes: number } | null> {
+    try {
+      const result = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: storageKey })
+      );
+      return { sizeBytes: result.ContentLength ?? 0 };
+    } catch (err: unknown) {
+      const name = (err as { name?: string }).name;
+      if (name === 'NotFound' || name === 'NoSuchKey' || (err as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) {
+        return null;
+      }
+      throw err;
     }
   }
 

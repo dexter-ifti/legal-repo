@@ -8,6 +8,9 @@ import { defaultDocumentProcessingService } from '../services/document-processin
 import { sendSuccess, sendError } from '../utils/api-response.js';
 import { TenantAccessDeniedError } from '../utils/authorization.js';
 import { StorageObjectNotFoundError } from '../storage/errors.js';
+import { getUploadSignedUrl, headStorageObject } from '../storage/storage.service.js';
+import { startIngestionPipeline } from '../worker/document-worker.js';
+import { z } from 'zod';
 import { prisma } from '../db/client.js';
 
 const router = Router();
@@ -21,6 +24,184 @@ const fetchDocumentOrgId = async (req: TenantRequest) => {
   });
   return item?.organizationId;
 };
+
+const uploadInitSchema = z.object({
+  filename: z.string().min(1).max(255),
+  size: z.number().int().positive(),
+  mime_type: z.literal('application/pdf'),
+  caseId: z.string().uuid().optional(),
+  documentType: z.string().max(60).optional(),
+  /** SHA-256 computed by the browser for pre-upload deduplication. */
+  sha256: z.string().regex(/^[a-f0-9]{64}$/i).optional(),
+});
+
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/**
+ * POST /api/v1/documents/upload/init
+ * First phase of direct-to-R2 upload: validates the request, creates the
+ * document record and returns a short-lived presigned PUT URL so the
+ * browser can upload directly to cloud storage (spec §5).
+ */
+router.post(
+  '/upload/init',
+  authenticateToken,
+  requireTenant,
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const parseResult = uploadInitSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const issue = parseResult.error.issues[0];
+        return void sendError(res, issue.message, 400, 'VALIDATION_ERROR');
+      }
+
+      const organizationId = req.organizationId!;
+      const userId = req.user!.id;
+      const { filename, size, mime_type, caseId, documentType, sha256 } = parseResult.data;
+
+      if (size > MAX_UPLOAD_BYTES) {
+        return void sendError(res, 'File exceeds the 50MB upload limit', 413, 'FILE_TOO_LARGE');
+      }
+
+      // Tenant-scoped case validation
+      if (caseId) {
+        const legalCase = await prisma.case.findFirst({
+          where: { id: caseId, organizationId },
+        });
+        if (!legalCase) {
+          return void sendError(res, 'Target case not found in organization', 404, 'CASE_NOT_FOUND');
+        }
+      }
+
+      // Pre-upload deduplication using the client-computed hash
+      if (sha256) {
+        const duplicate = await prisma.document.findFirst({
+          where: { organizationId, sha256 },
+          select: { id: true, originalFilename: true },
+        });
+        if (duplicate) {
+          return void sendSuccess(
+            res,
+            {
+              isDuplicate: true,
+              document: { id: duplicate.id, originalFilename: duplicate.originalFilename },
+            },
+            200
+          );
+        }
+      }
+
+      const documentId = crypto.randomUUID();
+      const storageKey = `organizations/${organizationId}/documents/${documentId}/original.pdf`;
+
+      await prisma.document.create({
+        data: {
+          id: documentId,
+          organizationId,
+          caseId: caseId ?? null,
+          originalFilename: filename.replace(/[^a-zA-Z0-9_. -]/g, '_'),
+          storageKey,
+          mimeType: mime_type,
+          fileSize: BigInt(size),
+          sha256: sha256 ?? null,
+          documentType: documentType ?? null,
+          processingStatus: 'CREATED',
+          uploadedBy: userId,
+        },
+      });
+
+      const uploadUrl = await getUploadSignedUrl(storageKey, mime_type, 900);
+
+      sendSuccess(
+        res,
+        {
+          documentId,
+          storageKey,
+          uploadUrl,
+          expiresIn: 900,
+        },
+        201
+      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to initialize upload';
+      sendError(res, message, 500, 'UPLOAD_INIT_FAILED');
+    }
+  }
+);
+
+/**
+ * POST /api/v1/documents/:id/upload/complete
+ * Second phase: verifies the object landed in R2, marks the document
+ * queued and starts the staged ingestion pipeline (spec §6, §8).
+ */
+router.post(
+  '/:id/upload/complete',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+      const declaredSize = typeof req.body?.size === 'number' ? req.body.size : null;
+
+      const document = await prisma.document.findFirst({
+        where: { id: documentId, organizationId },
+      });
+      if (!document) {
+        return void sendError(res, 'Document not found', 404, 'NOT_FOUND');
+      }
+
+      // Verify the object actually exists in R2 before marking complete.
+      const head = await headStorageObject(document.storageKey);
+      if (!head) {
+        return void sendError(
+          res,
+          'Uploaded object not found in storage — please retry the upload',
+          400,
+          'OBJECT_NOT_FOUND'
+        );
+      }
+
+      if (declaredSize != null && Math.abs(head.sizeBytes - declaredSize) > declaredSize * 0.01) {
+        return void sendError(
+          res,
+          'Uploaded file size does not match the initialized upload',
+          400,
+          'SIZE_MISMATCH'
+        );
+      }
+
+      await prisma.document.update({
+        where: { id: documentId },
+        data: {
+          processingStatus: 'QUEUED',
+          fileSize: BigInt(head.sizeBytes),
+        },
+      });
+
+      // Asynchronous staged pipeline (spec §8) — retryable via /retry.
+      startIngestionPipeline(organizationId, documentId);
+
+      sendSuccess(
+        res,
+        {
+          id: document.id,
+          processingStatus: 'QUEUED',
+          message: 'Upload verified — ingestion started.',
+        },
+        200
+      );
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to complete upload';
+      sendError(res, message, 500, 'UPLOAD_COMPLETE_FAILED');
+    }
+  }
+);
 
 /**
  * POST /api/v1/documents/upload
