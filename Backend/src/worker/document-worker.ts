@@ -57,6 +57,15 @@ export async function runIngestionPipeline(
   });
   if (!document) throw new Error('Document not found');
 
+  // Long OCR/extraction stages leave the DB connection idle long enough for
+  // pooled proxies (PgBouncer/Supabase) to reap it, killing later queries.
+  // A tiny periodic query keeps the connection alive for the pipeline's life.
+  const heartbeat = setInterval(() => {
+    prisma
+      .$queryRaw`SELECT 1`
+      .catch(() => {});
+  }, 20_000);
+
   try {
     // Claim the document atomically when it is still waiting to be processed.
     await prisma.document.update({
@@ -225,6 +234,12 @@ export async function runIngestionPipeline(
         isScanned(inspection.kind) ? 'OCR' : 'DOCUMENT_TEXT'
       );
 
+      // First-page metadata (spec §10) overrides regex matches found deep
+      // inside the bundle — the cause title is the authoritative source.
+      if (discovery && Object.keys(discovery.firstPageMetadata).length > 0) {
+        await persistFirstPageMetadata(documentId, discovery.firstPageMetadata);
+      }
+
       await prisma.document.update({
         where: { id: documentId },
         data: { language: dominantLanguage(pages.map((p) => p.language)) },
@@ -333,7 +348,11 @@ export async function runIngestionPipeline(
         stageAttempts: 0,
       },
     });
+
+    clearInterval(heartbeat);
   } catch (err: unknown) {
+    clearInterval(heartbeat);
+
     const message = err instanceof Error ? err.message : String(err);
 
     await prisma.document
@@ -502,4 +521,43 @@ async function extractNativePagesInRange(buffer: Buffer, from: number, to: numbe
   void loadingTask.destroy();
 
   return result;
+}
+
+/**
+ * Persists first-page metadata with high confidence, mapping party labels to
+ * the canonical field names used by the matcher and verification UI.
+ */
+async function persistFirstPageMetadata(
+  documentId: string,
+  metadata: Record<string, string>
+): Promise<void> {
+  const mapped: Record<string, string> = { ...metadata };
+
+  if (mapped.petitioners) mapped.client_name = mapped.petitioners;
+  if (mapped.respondents) mapped.opposing_party = mapped.respondents;
+  if (mapped.applicants) mapped.client_name = mapped.applicants;
+  if (mapped.defendants) mapped.opposing_party = mapped.defendants;
+  if (mapped.plaintiffs) mapped.client_name = mapped.plaintiffs;
+
+  const entries = Object.entries(mapped).filter(([key, value]) => key && value);
+  if (entries.length === 0) return;
+
+  const fieldNames = entries.map(([key]) => key);
+
+  await prisma.$transaction([
+    prisma.documentMetadata.deleteMany({
+      where: { documentId, fieldName: { in: fieldNames } },
+    }),
+    ...entries.map(([fieldName, fieldValue]) =>
+      prisma.documentMetadata.create({
+        data: {
+          documentId,
+          fieldName,
+          fieldValue,
+          confidence: 0.95,
+          source: 'DISCOVERY_FIRST_PAGE',
+        },
+      })
+    ),
+  ]);
 }

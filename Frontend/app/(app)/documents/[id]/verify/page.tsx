@@ -130,16 +130,44 @@ export default function DocumentVerifyPage() {
   const runExtraction = async () => {
     setExtracting(true);
     try {
-      const res = await fetch(`${API_URL}/api/v1/documents/${docId}/extract`, {
+      // Async staged pipeline: start it, then poll for completion. Large
+      // scanned bundles take minutes — never hold the HTTP request open.
+      const res = await fetch(`${API_URL}/api/v1/documents/${docId}/process`, {
         method: 'POST',
         headers: authHeaders(),
       });
-      if (!res.ok) {
+
+      if (res.status === 409) {
+        toast.info('Processing is already running — showing live progress.');
+      } else if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error?.message || 'Extraction failed');
+        throw new Error(body?.error?.message || 'Failed to start processing');
+      } else {
+        toast.success('Processing started — this can take a few minutes for large scans.');
       }
-      toast.success('Extraction complete — review the fields below.');
-      await loadDoc();
+
+      // Poll until terminal state (READY / FAILED variants) or timeout.
+      const deadline = Date.now() + 15 * 60 * 1000;
+      let done = false;
+      while (Date.now() < deadline && !done) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const latest = await loadDoc();
+        const stageStatus = latest?.processingStatus || '';
+        if (
+          stageStatus === 'READY' ||
+          stageStatus === 'PROCESSING_FAILED' ||
+          stageStatus === 'OCR_FAILED' ||
+          stageStatus === 'UNSUPPORTED'
+        ) {
+          done = true;
+        }
+      }
+
+      if (!done) {
+        toast.info('Still processing in the background — refresh to check progress.');
+      } else if ((await loadDoc())?.processingStatus === 'READY') {
+        toast.success('Extraction complete — review the fields below.');
+      }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Extraction failed');
     } finally {
@@ -475,7 +503,7 @@ function FieldRow({
           <p className="text-sm italic text-muted-foreground">Not found in document</p>
         )}
       </div>
-      {found && confidence != null && (
+      {found && confidence != null && Number.isFinite(Number(confidence)) && (
         <Badge
           variant="outline"
           className={`shrink-0 text-[10px] ${
@@ -486,7 +514,7 @@ function FieldRow({
               : 'border-error/40 text-error'
           }`}
         >
-          {Math.round(confidence * 100)}%
+          {Math.round(Number(confidence) * 100)}%
         </Badge>
       )}
     </div>

@@ -16,10 +16,16 @@ export function serializeForJson<T>(value: T): T {
   }
 
   if (value && typeof value === 'object') {
-    const maybeDecimal = value as { constructor?: { name?: string }; toNumber?: () => number; toString?: () => string };
-    if (maybeDecimal.constructor?.name === 'Decimal' && typeof maybeDecimal.toNumber === 'function') {
+    // Prisma Decimals (decimal.js instances) — detect by shape, not class
+    // name, which bundlers/minifiers can mangle.
+    const maybeDecimal = value as { toNumber?: () => number; toFixed?: () => string; toString?: () => string };
+    if (
+      typeof maybeDecimal.toNumber === 'function' &&
+      typeof maybeDecimal.toFixed === 'function' &&
+      Object.keys(value).length <= 4
+    ) {
       const asNumber = maybeDecimal.toNumber();
-      return (Number.isFinite(asNumber) ? asNumber : maybeDecimal.toString?.()) as T;
+      return (Number.isFinite(asNumber) ? asNumber : String(maybeDecimal)) as T;
     }
 
     return Object.fromEntries(

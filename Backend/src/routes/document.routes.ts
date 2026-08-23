@@ -523,6 +523,67 @@ router.get(
 );
 
 /**
+ * POST /api/v1/documents/:id/process
+ * Starts (or restarts) the staged ingestion pipeline asynchronously.
+ * Returns immediately — clients poll GET /documents/:id for stage status.
+ * Rejects with 409 when a pipeline is already running for this document.
+ */
+router.post(
+  '/:id/process',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+
+      const ACTIVE_STAGES = [
+        'QUEUED',
+        'INSPECTING',
+        'DISCOVERING',
+        'EXTRACTING',
+        'CLASSIFYING',
+        'MATCHING',
+        'SEGMENTING',
+        'NORMALIZING',
+        'INDEXING',
+      ];
+
+      // Atomic claim: only one pipeline may run at a time for this document.
+      const claimed = await prisma.document.updateMany({
+        where: {
+          id: documentId,
+          organizationId,
+          processingStatus: { notIn: ACTIVE_STAGES as never[] },
+        },
+        data: { processingStatus: 'QUEUED', stageError: null },
+      });
+
+      if (claimed.count === 0) {
+        return void sendError(
+          res,
+          'A processing pipeline is already running for this document',
+          409,
+          'PIPELINE_IN_PROGRESS'
+        );
+      }
+
+      startIngestionPipeline(organizationId, documentId);
+
+      sendSuccess(res, { processingStatus: 'QUEUED' }, 202);
+    } catch (err: unknown) {
+      if (err instanceof TenantAccessDeniedError) {
+        sendError(res, err.message, err.statusCode, err.errorCode);
+        return;
+      }
+      const message = err instanceof Error ? err.message : 'Failed to start processing';
+      sendError(res, message, 500, 'PROCESS_START_FAILED');
+    }
+  }
+);
+
+/**
  * POST /api/v1/documents/:id/extract
  * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
  * Triggers native PDF text extraction and metadata persistence.
