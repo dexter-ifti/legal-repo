@@ -56,6 +56,7 @@ Correct legal documents automatically identified and filed into the correct case
  - **Automatic post-upload processing**: every upload triggers the staged ingestion pipeline (inspect -> discover -> extract -> segment -> normalize -> index) asynchronously; atomic QUEUED-claim prevents double runs; retryable via `/documents/:id/retry`, which re-enters the same staged pipeline
  - Page-limited OCR: scanned documents are OCR'd only for the leading `OCR_MAX_PAGES` (default 2) pages via `pdf-lib` slicing before the Mistral OCR call
  - OCR batching passes an explicit per-batch `maxPages` so Mistral's cost-bounding slicer never drops pages from an OCR batch; OCR API failures return explicit error results instead of fabricated mock text
+ - First-page metadata extraction tolerates real scanned-proforma formats (numbered items, em-dash separators, separator-less party lines, Markdown artifacts); `filing_date` is anchored to the authoritative first page when it carries a date, else the first date in reading order — never a date from deep inside a bundle
 - Deterministic extraction & matching before expensive AI/LLM calls
 
 ---

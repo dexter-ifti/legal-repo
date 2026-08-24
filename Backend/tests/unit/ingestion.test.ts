@@ -49,6 +49,34 @@ test('first-page metadata discovery', () => {
   assert.equal(districtMeta.category, 'Writ - C');
 });
 
+test('first-page metadata handles OCR proforma formats (spec §10)', () => {
+  // Mirrors real scanned-proforma OCR output: numbered items, em-dash
+  // separators, a separator-less party line, markdown headings/bold,
+  // and a possessive continuation that must not be read as a value.
+  const proformaPage = [
+    '# PROFORMA FOR FRESH FILING',
+    '',
+    '1. Category — WRIT C',
+    '3. District — LUCKNOW',
+    '4. **Petitioner** — Farook Ali & Ors',
+    '6. Respondent State of U.P. & Ors',
+    "7. Petitioner's Advocate Name & Roll No. - SAJJAD HUSAIN 8150065112",
+    '17. High Court order date',
+    '',
+    'Date of Reporting',
+  ].join('\n');
+
+  const meta = extractFirstPageMetadata(proformaPage);
+
+  assert.equal(meta.petitioners, 'Farook Ali & Ors');
+  assert.equal(meta.respondents, 'State of U.P. & Ors');
+  assert.equal(meta.district, 'LUCKNOW');
+  assert.equal(meta.category, 'WRIT C');
+  // Possessive continuation and separator-less label phrases must be ignored.
+  assert.ok(!JSON.stringify(meta).includes('SAJJAD'));
+  assert.ok(!JSON.stringify(meta).includes('of Reporting'));
+});
+
 test('index / table-of-contents detection', () => {
   const indexPage = `INDEX
 

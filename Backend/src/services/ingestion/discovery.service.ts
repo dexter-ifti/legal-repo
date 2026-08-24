@@ -71,34 +71,92 @@ export interface DiscoveryResult {
 }
 
 /**
+ * Normalizes OCR/Markdown noise from a page-text line so label parsing works
+ * on real scanned proformas (spec §10): headings ("# CRIME DETAILS"), bold
+ * ("**Petitioner:**") and markdown table pipes are stripped.
+ */
+function normalizeOcrLine(line: string): string {
+  return line
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/^\s*\|/, '')
+    .replace(/\|\s*$/, '')
+    .trim();
+}
+
+/** Separators seen in real filings: colon, hyphen, en/em dash, equals, ":-". */
+const SEPARATOR = `[:\\-–—=]+`;
+
+const PARTY_LABEL_SOURCE =
+  'petitioners?|respondents?|applicants?|plaintiffs?|defendants?|complainants?|appellants?|opposite\\s+part(?:y|ies)';
+
+// Party lines may omit any separator entirely ("Respondent State of U.P."),
+// so whitespace counts as a separator — but a possessive continuation
+// ("Petitioner's Advocate Name ...") must NOT be read as the party value.
+const PARTY_LINE = new RegExp(
+  `^(?:\\d{1,2}[.)]\\s*)?(${PARTY_LABEL_SOURCE})\\b\\s*(?:no\\.?\\s*\\d+\\s*)?(?!['’]s)(?:${SEPARATOR}\\s*|\\s+)(.{2,120})$`,
+  'i'
+);
+
+// Non-party labels require an explicit separator so phrases like
+// "Date of Reporting" or "High Court order date" are never misread.
+const OTHER_LABEL_SOURCE =
+  'court|district|police\\s+station|advocate|category|case\\s+(?:no|number)|case\\s+type|date';
+
+const OTHER_LINE = new RegExp(
+  `^(?:\\d{1,2}[.)]\\s*)?(${OTHER_LABEL_SOURCE})\\b\\s*(?:no\\.?\\s*\\d+\\s*)?${SEPARATOR}\\s*(.{2,120})$`,
+  'i'
+);
+
+function cleanLabelValue(raw: string): string | null {
+  const value = raw
+    .replace(/^[\s\-–—:.]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    // Trailing list punctuation from numbered proforma items.
+    .replace(/[.,;]+$/, '');
+
+  if (!value || value.length < 2) return null;
+  // Placeholder values carry no information.
+  if (/^(?:na|n\.a\.?|nil|none|-+)$/i.test(value)) return null;
+  return value;
+}
+
+/**
  * Extracts structured legal metadata from a single page's text.
  * Deterministic-first: regex/label heuristics only — no LLM.
+ *
+ * Tolerates real-world OCR output: numbered proforma items
+ * ("4. Petitioner — Farook Ali"), separator-less party lines
+ * ("Respondent State of U.P."), and Markdown artifacts.
  */
 export function extractFirstPageMetadata(pageText: string): Record<string, string> {
   const metadata: Record<string, string> = {};
-  const lines = pageText.split(/\r\n|\r|\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = pageText.split(/\r\n|\r|\n/)
+    .map(normalizeOcrLine)
+    .filter(Boolean);
 
   for (const line of lines) {
-    // "Petitioner : Farooq Ali" / "Respondent No. 1 State of..."
-    const labelMatch = line.match(/^([A-Z][A-Za-z .]{2,40}?)\s*(?:No\.?\s*\d+\s*)?[:\-–]\s*(.{2,120})$/);
-    if (!labelMatch) continue;
-
-    const label = labelMatch[1].toLowerCase().replace(/\s+/g, ' ').trim();
-    const value = labelMatch[2].trim();
-
-    if (PARTY_LABELS.some((p) => label === p || label.startsWith(p + ' no')) && value) {
-      const canonical = canonicalPartyKey(label);
-      metadata[canonical] = metadata[canonical] ? `${metadata[canonical]} | ${value}` : value;
+    const partyMatch = line.match(PARTY_LINE);
+    if (partyMatch) {
+      const value = cleanLabelValue(partyMatch[2]);
+      if (value) {
+        const canonical = canonicalPartyKey(partyMatch[1].toLowerCase().replace(/\s+/g, ' ').trim());
+        metadata[canonical] = metadata[canonical] ? `${metadata[canonical]} | ${value}` : value;
+      }
       continue;
     }
 
-    if ((label === 'court' || label === 'district' || label === 'police station' ||
-         label === 'advocate' || label === 'category' || label === 'case number' ||
-         label === 'case no' || label === 'case type') && value) {
-      const key = label === 'case no' ? 'case_number'
-        : label === 'case type' ? 'case_type'
-        : label.replace(/\s+/g, '_');
-      metadata[key] = metadata[key] ? `${metadata[key]} | ${value}` : value;
+    const otherMatch = line.match(OTHER_LINE);
+    if (otherMatch) {
+      const value = cleanLabelValue(otherMatch[2]);
+      if (value) {
+        const label = otherMatch[1].toLowerCase().replace(/\s+/g, ' ').trim();
+        const key = label === 'case no' ? 'case_number'
+          : label === 'case type' ? 'case_type'
+          : label.replace(/\s+/g, '_');
+        metadata[key] = metadata[key] ? `${metadata[key]} | ${value}` : value;
+      }
     }
   }
 

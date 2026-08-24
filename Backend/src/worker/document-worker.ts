@@ -236,10 +236,15 @@ export async function runIngestionPipeline(
       .trim();
 
     if (fullText.length > 20) {
+      // The first page is authoritative for identifying metadata (spec §10):
+      // anchor filing_date to it so dates from receipts/endorsements deep in
+      // the bundle are never promoted to the document's filing date.
+      const dateAnchorText = stripControl(discoveryPageTexts.get(1) || '');
       await defaultMetadataExtractionService.persistExtractedMetadata(
         documentId,
         stripControl(fullText),
-        isScanned(inspection.kind) ? 'OCR' : 'DOCUMENT_TEXT'
+        isScanned(inspection.kind) ? 'OCR' : 'DOCUMENT_TEXT',
+        dateAnchorText || undefined
       );
 
       // First-page metadata (spec §10) overrides regex matches found deep
@@ -546,6 +551,10 @@ async function persistFirstPageMetadata(
   if (mapped.applicants) mapped.client_name = mapped.applicants;
   if (mapped.defendants) mapped.opposing_party = mapped.defendants;
   if (mapped.plaintiffs) mapped.client_name = mapped.plaintiffs;
+
+  // A date printed on the authoritative first page overrides any
+  // full-text heuristic (spec §10).
+  if (mapped.date) mapped.filing_date = mapped.date;
 
   const entries = Object.entries(mapped).filter(([key, value]) => key && value);
   if (entries.length === 0) return;
