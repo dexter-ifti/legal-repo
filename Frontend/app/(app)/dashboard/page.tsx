@@ -41,7 +41,7 @@ import {
   Cell,
 } from 'recharts';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useUserProfile } from '@/lib/use-user';
 
 const activityIconMap = {
@@ -52,6 +52,16 @@ const activityIconMap = {
   reject: { icon: FileText, color: 'text-error', bg: 'bg-error-soft' },
   create: { icon: FileText, color: 'text-neutral-status', bg: 'bg-neutral-soft' },
 };
+
+/** Slice colors for the category pie (matches mock-data palette). */
+const CATEGORY_PALETTE = [
+  'hsl(199 89% 30%)',
+  'hsl(142 71% 38%)',
+  'hsl(38 92% 50%)',
+  'hsl(215 28% 35%)',
+  'hsl(0 72% 51%)',
+  'hsl(215 16% 47%)',
+];
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUserProfile();
@@ -139,6 +149,51 @@ export default function DashboardPage() {
 
   const firstName = user.name ? user.name.trim().split(' ')[0] : 'Advocate';
 
+  // Weekly upload activity computed from real tenant documents: uploads are
+  // bucketed per calendar day over the trailing 7 days (today last).
+  const realWeeklyUploads = useMemo(() => {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const buckets: Array<{ key: string; day: string; count: number }> = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      buckets.push({
+        key: `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`,
+        day: dayNames[d.getDay()],
+        count: 0,
+      });
+    }
+    const byKey = new Map(buckets.map((b) => [b.key, b]));
+    for (const doc of realDocs) {
+      if (!doc.uploadedAt) continue;
+      const u = new Date(doc.uploadedAt);
+      if (Number.isNaN(u.getTime())) continue;
+      const bucket = byKey.get(`${u.getFullYear()}-${u.getMonth()}-${u.getDate()}`);
+      if (bucket) bucket.count += 1;
+    }
+    return buckets;
+  }, [realDocs]);
+
+  // Category distribution from real document types, largest slice first.
+  const realCategoryBreakdown = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const doc of realDocs) {
+      const category = doc.documentType?.trim() || 'Unclassified';
+      counts.set(category, (counts.get(category) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([category, count], i) => ({
+        category,
+        count,
+        fill: CATEGORY_PALETTE[i % CATEGORY_PALETTE.length],
+      }));
+  }, [realDocs]);
+
+  const weeklyUploadData = isDemo ? dashboardStats.weeklyUploads : realWeeklyUploads;
+  const categoryData = isDemo ? dashboardStats.categoryBreakdown : realCategoryBreakdown;
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -198,15 +253,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={isDemo ? dashboardStats.weeklyUploads : [
-                  { day: 'Mon', count: 0 },
-                  { day: 'Tue', count: 0 },
-                  { day: 'Wed', count: 0 },
-                  { day: 'Thu', count: 0 },
-                  { day: 'Fri', count: 0 },
-                  { day: 'Sat', count: 0 },
-                  { day: 'Sun', count: 0 },
-                ]} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <BarChart data={weeklyUploadData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <XAxis
                     dataKey="day"
                     tickLine={false}
@@ -243,7 +290,11 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={isDemo ? dashboardStats.categoryBreakdown : [{ category: 'None', count: 1, fill: 'hsl(var(--muted))' }]}
+                    data={
+                      categoryData.length > 0
+                        ? categoryData
+                        : [{ category: 'None', count: 1, fill: 'hsl(var(--muted))' }]
+                    }
                     dataKey="count"
                     nameKey="category"
                     cx="50%"
@@ -252,7 +303,10 @@ export default function DashboardPage() {
                     outerRadius={75}
                     paddingAngle={2}
                   >
-                    {(isDemo ? dashboardStats.categoryBreakdown : [{ category: 'None', count: 1, fill: 'hsl(var(--muted))' }]).map((entry, i) => (
+                    {(categoryData.length > 0
+                      ? categoryData
+                      : [{ fill: 'hsl(var(--muted))' }]
+                    ).map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />
                     ))}
                   </Pie>
@@ -267,7 +321,7 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
             <div className="mt-4 space-y-1.5">
-              {(isDemo ? dashboardStats.categoryBreakdown : []).map((cat) => (
+              {categoryData.map((cat) => (
                 <div key={cat.category} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.fill }} />
@@ -276,7 +330,7 @@ export default function DashboardPage() {
                   <span className="font-medium text-foreground">{cat.count}</span>
                 </div>
               ))}
-              {!isDemo && realDocs.length === 0 && (
+              {categoryData.length === 0 && (
                 <p className="text-center text-xs text-muted-foreground py-2">
                   No documents uploaded yet.
                 </p>

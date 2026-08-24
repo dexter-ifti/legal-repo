@@ -58,6 +58,7 @@ Correct legal documents automatically identified and filed into the correct case
  - OCR batching passes an explicit per-batch `maxPages` so Mistral's cost-bounding slicer never drops pages from an OCR batch; OCR API failures return explicit error results instead of fabricated mock text
  - First-page metadata extraction tolerates real scanned-proforma formats (numbered items, em-dash separators, separator-less party lines, Markdown artifacts); `filing_date` is anchored to the authoritative first page when it carries a date, else the first date in reading order — never a date from deep inside a bundle
  - Verification UI: extracted fields are inline-editable via `PATCH /api/v1/documents/:id/metadata` (source=USER, confidence=1.0, `METADATA_CORRECTED` audit event); every metadata row carries `pageNumber` provenance showing which scanned page the value came from
+ - Dashboard charts (Weekly Upload Activity, Document Categories) are computed from real tenant documents; demo users see synthetic data only
 - Deterministic extraction & matching before expensive AI/LLM calls
 
 ---
