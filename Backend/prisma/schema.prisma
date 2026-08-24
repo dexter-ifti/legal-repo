@@ -177,6 +177,7 @@ model DocumentMetadata {
   fieldValue String?  @map("field_value")
   confidence Decimal? @db.Decimal(5, 4)
   source     String?
+  pageNumber Int?     @map("page_number")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

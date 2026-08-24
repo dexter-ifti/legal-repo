@@ -240,11 +240,21 @@ export async function runIngestionPipeline(
       // anchor filing_date to it so dates from receipts/endorsements deep in
       // the bundle are never promoted to the document's filing date.
       const dateAnchorText = stripControl(discoveryPageTexts.get(1) || '');
+      // Per-page texts let every persisted field record the page it came
+      // from — shown as provenance in the verification UI.
+      const pageTexts = new Map<number, string>(
+        pages
+          .filter((p) => p.rawText)
+          .map((p) => [p.pageNumber, stripControl(p.rawText as string)])
+      );
       await defaultMetadataExtractionService.persistExtractedMetadata(
         documentId,
         stripControl(fullText),
         isScanned(inspection.kind) ? 'OCR' : 'DOCUMENT_TEXT',
-        dateAnchorText || undefined
+        {
+          dateAnchorText: dateAnchorText || undefined,
+          pageTexts,
+        }
       );
 
       // First-page metadata (spec §10) overrides regex matches found deep
@@ -573,6 +583,7 @@ async function persistFirstPageMetadata(
           fieldValue,
           confidence: 0.95,
           source: 'DISCOVERY_FIRST_PAGE',
+          pageNumber: 1,
         },
       })
     ),

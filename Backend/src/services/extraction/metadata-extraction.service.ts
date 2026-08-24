@@ -84,9 +84,14 @@ export class MetadataExtractionService {
     documentId: string,
     text: string,
     source: string = 'DOCUMENT_TEXT',
-    dateAnchorText?: string
+    options: {
+      /** Authoritative first-page text — anchors filing_date (spec §10). */
+      dateAnchorText?: string;
+      /** Per-page texts used to resolve which page each value came from. */
+      pageTexts?: Map<number, string>;
+    } = {}
   ) {
-    const extracted = this.extract(text, source, dateAnchorText);
+    const extracted = this.extract(text, source, options.dateAnchorText);
 
     if (extracted.allFields.length > 0) {
       const fieldNames = [...new Set(extracted.allFields.map((f) => f.fieldName))];
@@ -103,6 +108,10 @@ export class MetadataExtractionService {
               fieldValue: field.fieldValue,
               confidence: field.confidence,
               source: field.source,
+              pageNumber:
+                options.pageTexts && field.fieldValue
+                  ? findSourcePage(options.pageTexts, field.fieldValue)
+                  : null,
             },
           })
         ),
@@ -111,6 +120,25 @@ export class MetadataExtractionService {
 
     return extracted;
   }
+}
+
+/**
+ * Finds the first page (1-based) whose text contains the extracted value.
+ * Whitespace-insensitive so OCR line breaks do not hide real matches.
+ * Returns null when the value cannot be located (e.g. spans two pages).
+ */
+export function findSourcePage(pageTexts: Map<number, string>, value: string): number | null {
+  const needle = value.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!needle) return null;
+
+  const pageNumbers = [...pageTexts.keys()].sort((a, b) => a - b);
+  for (const pageNumber of pageNumbers) {
+    const haystack = (pageTexts.get(pageNumber) || '').replace(/\s+/g, ' ').toLowerCase();
+    if (haystack.includes(needle)) {
+      return pageNumber;
+    }
+  }
+  return null;
 }
 
 export const defaultMetadataExtractionService = new MetadataExtractionService();

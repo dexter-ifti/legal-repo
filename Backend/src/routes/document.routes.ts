@@ -37,6 +37,21 @@ const uploadInitSchema = z.object({
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
+/** Entity fields the verification UI allows users to view and correct. */
+const EDITABLE_METADATA_FIELDS = [
+  'case_number',
+  'cnr_number',
+  'court',
+  'client_name',
+  'opposing_party',
+  'filing_date',
+] as const;
+
+const metadataEditSchema = z.object({
+  fieldName: z.enum(EDITABLE_METADATA_FIELDS),
+  fieldValue: z.string().max(500),
+});
+
 /**
  * POST /api/v1/documents/upload/init
  * First phase of direct-to-R2 upload: validates the request, creates the
@@ -812,6 +827,87 @@ router.post(
       }
       const message = err instanceof Error ? err.message : 'Failed to reassign document case';
       sendError(res, message, 500, 'REASSIGN_ERROR');
+    }
+  }
+);
+
+/**
+ * PATCH /api/v1/documents/:id/metadata
+ * Protected by authenticateToken, requireTenant, and authorizeResourceOwnership.
+ * User correction of an extracted field from the verification UI.
+ * Stores source=USER with full confidence and emits a structured audit event
+ * so every human correction is captured as feedback (AGENTS §8).
+ */
+router.patch(
+  '/:id/metadata',
+  authenticateToken,
+  requireTenant,
+  authorizeResourceOwnership(fetchDocumentOrgId, 'Document'),
+  async (req: TenantRequest, res: Response): Promise<void> => {
+    try {
+      const parseResult = metadataEditSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const issue = parseResult.error.issues[0];
+        return void sendError(res, issue.message, 400, 'VALIDATION_ERROR');
+      }
+
+      const organizationId = req.organizationId!;
+      const documentId = req.params.id;
+      const userId = req.user!.id;
+      const { fieldName, fieldValue } = parseResult.data;
+
+      const document = await prisma.document.findFirst({
+        where: { id: documentId, organizationId },
+        select: { id: true },
+      });
+      if (!document) {
+        return void sendError(res, 'Document not found', 404, 'NOT_FOUND');
+      }
+
+      const existing = await prisma.documentMetadata.findFirst({
+        where: { documentId, fieldName },
+      });
+
+      // Upsert keeps this idempotent; corrections keep the original page
+      // provenance — the value still originated on that page.
+      const saved = await prisma.documentMetadata.upsert({
+        where: { id: existing?.id ?? '00000000-0000-0000-0000-000000000000' },
+        create: {
+          documentId,
+          fieldName,
+          fieldValue,
+          confidence: 1.0,
+          source: 'USER',
+          pageNumber: null,
+        },
+        update: {
+          fieldValue,
+          confidence: 1.0,
+          source: 'USER',
+        },
+      });
+
+      await prisma.auditEvent.create({
+        data: {
+          organizationId,
+          userId,
+          entityType: 'DOCUMENT',
+          entityId: documentId,
+          eventType: 'METADATA_CORRECTED',
+          metadata: {
+            fieldName,
+            previousValue: existing?.fieldValue ?? null,
+            newValue: fieldValue,
+            previousSource: existing?.source ?? null,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      sendSuccess(res, { metadata: saved }, 200);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update metadata';
+      sendError(res, message, 500, 'METADATA_UPDATE_ERROR');
     }
   }
 );

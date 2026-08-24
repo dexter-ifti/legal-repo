@@ -18,7 +18,10 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
+  Pencil,
+  MapPin,
 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
@@ -42,6 +45,7 @@ interface MetadataField {
   fieldValue: string | null;
   confidence: number | null;
   source: string | null;
+  pageNumber?: number | null;
 }
 
 interface VerifyDoc {
@@ -126,6 +130,42 @@ export default function DocumentVerifyPage() {
     setLoading(true);
     Promise.all([loadDoc(), loadPreviewUrl()]).finally(() => setLoading(false));
   }, [docId, loadDoc, loadPreviewUrl]);
+
+  // Persists a user correction for one extracted field (PATCH metadata)
+  // and updates local state so the UI reflects the saved value instantly.
+  const saveField = useCallback(
+    async (fieldName: string, fieldValue: string): Promise<boolean> => {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/documents/${docId}/metadata`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          body: JSON.stringify({ fieldName, fieldValue }),
+        });
+        const body = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(body?.error?.message || `Failed to save (Status ${res.status})`);
+        }
+        const saved = body?.data?.metadata as MetadataField | undefined;
+        setDoc((prev) =>
+          prev
+            ? {
+                ...prev,
+                metadata: [
+                  ...prev.metadata.filter((m) => m.fieldName !== fieldName),
+                  ...(saved ? [saved] : []),
+                ],
+              }
+            : prev
+        );
+        toast.success('Field updated');
+        return true;
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to save field');
+        return false;
+      }
+    },
+    [API_URL, docId, authHeaders]
+  );
 
   const runExtraction = async () => {
     setExtracting(true);
@@ -327,7 +367,9 @@ export default function DocumentVerifyPage() {
                     Extracted Data
                   </CardTitle>
                   <CardDescription>
-                    Confirm these values match the original before filing
+                    {pageCount
+                      ? `Confirm these values match the original — extracted after scanning ${pageCount} page${pageCount === '1' ? '' : 's'} of this document`
+                      : 'Confirm these values match the original before filing'}
                   </CardDescription>
                 </div>
                 {showReExtractButton && (
@@ -348,65 +390,68 @@ export default function DocumentVerifyPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {!hasEntityData ? (
-                extractedNothing ? (
-                  <div className="rounded-lg border border-dashed p-6 text-center">
-                    <ScanSearch className="mx-auto h-6 w-6 text-muted-foreground opacity-60" />
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      No legal entities detected
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Extraction completed successfully, but no case number, CNR, court, or party
-                      names were found in the{' '}
-                      {isScanned ? `OCR'd` : ''} first pages. This is expected for non-legal
-                      documents (resumes, invoices, general files). The document was not modified.
-                    </p>
-                  </div>
-                ) : isInProgress ? (
-                  <div className="rounded-lg border border-dashed p-6 text-center">
-                    <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand" />
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      Processing in progress
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      The pipeline ({doc.processingStatus.toLowerCase()}) is still running — check
-                      back shortly or re-run extraction.
-                    </p>
-                  </div>
-                ) : isFailed ? (
-                  <div className="rounded-lg border border-error/40 bg-error-soft/30 p-6 text-center">
-                    <AlertCircle className="mx-auto h-6 w-6 text-error" />
-                    <p className="mt-2 text-sm font-medium text-foreground">
-                      Extraction failed ({doc.processingStatus.replace(/_/g, ' ').toLowerCase()})
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Click Run Extraction to retry. Your original file is untouched.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-dashed p-6 text-center">
-                    <ScanSearch className="mx-auto h-6 w-6 text-muted-foreground opacity-60" />
-                    <p className="mt-2 text-sm font-medium text-foreground">Not extracted yet</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Run extraction to pull legal entities from this document.
-                    </p>
-                  </div>
-                )
-              ) : (
-                <div className="space-y-1">
-                  {FIELD_CONFIG.map(({ key, label, icon: Icon }) => {
-                    const field = fieldMap.get(key);
-                    return (
-                      <FieldRow
-                        key={key}
-                        icon={Icon}
-                        label={label}
-                        value={field?.fieldValue}
-                        confidence={field?.confidence ?? null}
-                      />
-                    );
-                  })}
+              {isNotProcessed ? (
+                <div className="rounded-lg border border-dashed p-6 text-center">
+                  <ScanSearch className="mx-auto h-6 w-6 text-muted-foreground opacity-60" />
+                  <p className="mt-2 text-sm font-medium text-foreground">Not extracted yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Run extraction to pull legal entities from this document.
+                  </p>
                 </div>
+              ) : isInProgress ? (
+                <div className="rounded-lg border border-dashed p-6 text-center">
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand" />
+                  <p className="mt-2 text-sm font-medium text-foreground">
+                    Processing in progress
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    The pipeline ({doc.processingStatus.toLowerCase()}) is still running — check
+                    back shortly or re-run extraction.
+                  </p>
+                </div>
+              ) : isFailed ? (
+                <div className="rounded-lg border border-error/40 bg-error-soft/30 p-6 text-center">
+                  <AlertCircle className="mx-auto h-6 w-6 text-error" />
+                  <p className="mt-2 text-sm font-medium text-foreground">
+                    Extraction failed ({doc.processingStatus.replace(/_/g, ' ').toLowerCase()})
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Click Run Extraction to retry. Your original file is untouched.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {extractedNothing && (
+                    <div className="mb-3 rounded-lg border border-dashed p-4 text-center">
+                      <ScanSearch className="mx-auto h-5 w-5 text-muted-foreground opacity-60" />
+                      <p className="mt-2 text-sm font-medium text-foreground">
+                        No legal entities detected automatically
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Nothing matched the extractors in the{' '}
+                        {isScanned ? `OCR'd` : ''} scanned pages — this is expected for non-legal
+                        documents. You can fill the fields in manually below.
+                      </p>
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    {FIELD_CONFIG.map(({ key, label, icon: Icon }) => {
+                      const field = fieldMap.get(key);
+                      return (
+                        <EditableFieldRow
+                          key={key}
+                          icon={Icon}
+                          label={label}
+                          value={field?.fieldValue}
+                          confidence={field?.confidence ?? null}
+                          source={field?.source ?? null}
+                          pageNumber={field?.pageNumber ?? null}
+                          onSave={(newValue) => saveField(key, newValue)}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
               )}
 
               <Separator className="my-4" />
@@ -473,22 +518,82 @@ export default function DocumentVerifyPage() {
   );
 }
 
-function FieldRow({
+function EditableFieldRow({
   icon: Icon,
   label,
   value,
   confidence,
+  source,
+  pageNumber,
+  onSave,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string | null | undefined;
   confidence: number | null;
+  source: string | null;
+  pageNumber: number | null;
+  onSave: (newValue: string) => Promise<boolean>;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || '');
+  const [saving, setSaving] = useState(false);
   const found = !!value;
+
+  const startEdit = () => {
+    setDraft(value || '');
+    setEditing(true);
+  };
+
+  const save = async () => {
+    const trimmed = draft.trim();
+    if (!trimmed || saving) return;
+    const ok = await onSave(trimmed);
+    if (ok) setEditing(false);
+  };
+
+  // Provenance: where this value came from. User corrections are marked as
+  // such; extracted values show the page the pipeline found them on.
+  const provenance =
+    source === 'USER'
+      ? { text: 'Edited by you', tone: 'border-brand/40 text-brand' }
+      : pageNumber != null
+      ? { text: `Found on page ${pageNumber}`, tone: 'border-muted-foreground/30 text-muted-foreground' }
+      : null;
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-brand/40 bg-card p-3">
+        <Icon className="h-4 w-4 shrink-0 text-brand" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <Input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void save();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+            disabled={saving}
+            className="mt-1 h-8 text-sm"
+            maxLength={500}
+            placeholder={`Enter ${label.toLowerCase()}`}
+          />
+        </div>
+        <Button size="sm" onClick={() => void save()} disabled={saving || !draft.trim()}>
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>
+          Cancel
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg border p-3 ${
+      className={`group flex items-center gap-3 rounded-lg border p-3 ${
         found ? 'border-transparent bg-card' : 'border-dashed border-warning/40 bg-warning-soft/30'
       }`}
     >
@@ -500,14 +605,33 @@ function FieldRow({
             {value}
           </p>
         ) : (
-          <p className="text-sm italic text-muted-foreground">Not found in document</p>
+          <button
+            onClick={startEdit}
+            className="text-left text-sm italic text-muted-foreground hover:text-foreground"
+          >
+            Not found in document — click to add
+          </button>
         )}
       </div>
+      {found && provenance && (
+        <Badge variant="outline" className={`shrink-0 gap-1 text-[10px] ${provenance.tone}`}>
+          <MapPin className="h-3 w-3" />
+          {provenance.text}
+        </Badge>
+      )}
+      {!found && (
+        <Button size="sm" variant="outline" onClick={startEdit} className="shrink-0 text-xs">
+          <Pencil className="mr-1 h-3 w-3" />
+          Add
+        </Button>
+      )}
       {found && confidence != null && Number.isFinite(Number(confidence)) && (
         <Badge
           variant="outline"
           className={`shrink-0 text-[10px] ${
-            confidence >= 0.9
+            source === 'USER'
+              ? 'border-brand/40 text-brand'
+              : confidence >= 0.9
               ? 'border-success/40 text-success'
               : confidence >= 0.75
               ? 'border-warning/40 text-warning'
@@ -517,6 +641,15 @@ function FieldRow({
           {Math.round(Number(confidence) * 100)}%
         </Badge>
       )}
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={startEdit}
+        className="shrink-0 opacity-60 transition-opacity hover:opacity-100"
+        aria-label={`Edit ${label}`}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }
