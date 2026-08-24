@@ -8,6 +8,7 @@ import { IOcrProvider } from './ocr/ocr-provider.interface.js';
 import { defaultMetadataExtractionService } from './extraction/metadata-extraction.service.js';
 import { defaultDocumentClassifierService } from './classification/document-classifier.service.js';
 import { defaultCaseMatcherService } from './matching/case-matcher.service.js';
+import { runIngestionPipeline } from '../worker/document-worker.js';
 import { getOcrMaxPages } from '../config/processing.config.js';
 
 export class DocumentProcessingService {
@@ -310,8 +311,24 @@ export class DocumentProcessingService {
       },
     });
 
-    // Re-trigger pipeline execution
-    return this.processDocumentPipeline(organizationId, documentId);
+    // Re-enter the SAME staged ingestion pipeline that processed the upload
+    // (inspect -> discover -> extract -> segment -> normalize -> index). It is
+    // idempotent: completed page/segment work is upserted, not duplicated.
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { processingStatus: 'QUEUED' },
+    });
+    await runIngestionPipeline(organizationId, documentId);
+
+    const retriedDoc = await prisma.document.findFirst({
+      where: buildTenantWhereClause(organizationId, { id: documentId }),
+    });
+
+    return {
+      success: true,
+      status: retriedDoc?.processingStatus ?? 'UNKNOWN',
+      document: retriedDoc,
+    };
   }
 }
 

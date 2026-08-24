@@ -67,11 +67,19 @@ export async function runIngestionPipeline(
   }, 20_000);
 
   try {
-    // Claim the document atomically when it is still waiting to be processed.
-    await prisma.document.update({
-      where: { id: documentId },
+    // Claim the document atomically: only a runner that observes QUEUED may
+    // proceed, so concurrent triggers (double /upload/complete, retry races)
+    // can never execute the pipeline twice on the same document.
+    const claimed = await prisma.document.updateMany({
+      where: { id: documentId, organizationId, processingStatus: 'QUEUED' },
       data: { stageError: null },
     });
+
+    if (claimed.count === 0) {
+      // Another trigger already claimed (or finished) this document.
+      clearInterval(heartbeat);
+      return;
+    }
 
     // ------------------------------------------------------------------
     // 1. TECHNICAL INSPECTION (spec §9)

@@ -55,8 +55,8 @@ export function detectLanguage(text: string): 'en' | 'hi' | 'mixed' {
  *   - native text where usable (cheap)
  *   - Mistral OCR only for unusable pages, batched into contiguous ranges
  *
- * `pageTexts` from a prior inspection pass are reused so we never extract
- * the same page twice.
+ * Native text is extracted once here; OCR batches are sliced with pdf-lib so
+ * each Mistral call covers exactly its contiguous page range (spec §18/§34).
  */
 export async function extractAllPages(
   buffer: Buffer,
@@ -82,7 +82,9 @@ export async function extractAllPages(
       results.set(pageNumber, {
         pageNumber,
         rawText: rawText || null,
-        extractionMethod: 'native',
+        // Unusable native text must not be recorded as a successful native
+        // extraction — provenance stays truthful for retry/evaluation.
+        extractionMethod: usable ? 'native' : 'failed',
         wordCount: rawText ? rawText.split(/\s+/).filter(Boolean).length : 0,
         charCount: rawText.length,
         language: detectLanguage(rawText),
@@ -127,7 +129,12 @@ export async function extractAllPages(
       const sliced = await sliceRange(buffer, batchStart, batchEnd);
 
       try {
-        const ocrResult = await ocrProvider.extractText(sliced, {});
+        // Tell the provider how many pages this batch contains so its
+        // internal cost-bounding slicer keeps the WHOLE batch instead of
+        // re-slicing it to the default 2-page prefix (spec §18).
+        const ocrResult = await ocrProvider.extractText(sliced, {
+          maxPages: batchEnd - batchStart + 1,
+        });
         const pages = ocrResult.pages || [];
 
         pages.forEach((pageResult, index) => {
@@ -177,8 +184,9 @@ function stripInvalid(text: string): string {
 }
 
 async function sliceRange(buffer: Buffer, from: number, to: number): Promise<Buffer> {
-  // Slice full range in one operation: keep pages [from..to]
-  if (to < 2) return buffer;
+  // Slice full range in one operation: keep pages [from..to].
+  // Never return the original buffer here — an oversized buffer would be
+  // mis-aligned with the batch's page-number mapping downstream.
   const pdfLib = await import('pdf-lib');
   const source = await pdfLib.PDFDocument.load(buffer, { ignoreEncryption: true });
   const target = await pdfLib.PDFDocument.create();

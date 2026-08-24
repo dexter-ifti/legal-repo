@@ -124,11 +124,16 @@ export class MistralOcrProvider implements IOcrProvider {
       };
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Mistral OCR call failed';
-      // Graceful fallback to mock provider if remote API call fails
-      const fallbackResult = await this.fallbackProvider.extractText(pdfBuffer, options);
+      // Never substitute fabricated placeholder text for a real legal
+      // document (spec §7: AI failure must never corrupt business state).
+      // Return an explicit error result so callers can mark the affected
+      // pages failed and retry them independently.
       return {
-        ...fallbackResult,
-        error: `Mistral OCR Error (${errorMsg}), using fallback`,
+        text: '',
+        confidence: 0,
+        pageCount: 0,
+        provider: 'mistral-ocr',
+        error: `Mistral OCR Error (${errorMsg})`,
       };
     }
   }
