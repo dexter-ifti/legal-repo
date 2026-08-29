@@ -9,10 +9,10 @@ describe('Frontend Formatting Utilities', () => {
   });
 
   it('statusLabel returns human-readable document status', () => {
-    expect(statusLabel('uploaded')).toBe('Uploaded');
+    expect(statusLabel('uploaded')).toBe('Just uploaded');
     expect(statusLabel('processing')).toBe('Processing');
-    expect(statusLabel('review')).toBe('In Review');
-    expect(statusLabel('filed')).toBe('Filed');
+    expect(statusLabel('review')).toBe('Needs your review');
+    expect(statusLabel('filed')).toBe('Filed automatically');
     expect(statusLabel('rejected')).toBe('Rejected');
   });
 
