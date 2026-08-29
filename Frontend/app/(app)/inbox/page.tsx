@@ -2,22 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Inbox,
   FileCheck,
-  AlertCircle,
-  HelpCircle,
-  RefreshCw,
   Search,
-  Filter,
   ArrowRight,
-  ShieldAlert,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MatchingCandidatesCard, CaseCandidate } from '@/components/documents/matching-candidates-card';
-import { ReassignCaseDialog, CaseOption } from '@/components/documents/reassign-case-dialog';
+import { cn } from '@/lib/utils';
+import {
+  MatchingCandidatesCard,
+  CaseCandidate,
+} from '@/components/documents/matching-candidates-card';
+import {
+  ReassignCaseDialog,
+  CaseOption,
+} from '@/components/documents/reassign-case-dialog';
 import { toast } from 'sonner';
 
 export interface InboxDocument {
@@ -33,12 +34,14 @@ export interface InboxDocument {
   metadata?: Array<{ fieldName: string; fieldValue: string | null }>;
 }
 
-export default function FilingInboxPage() {
+type FilterKey = 'ALL_PENDING' | 'CONFIRMATION_REQUIRED' | 'NO_MATCH' | 'FILED';
+
+export default function NeedsAttentionPage() {
   const [documents, setDocuments] = useState<InboxDocument[]>([]);
   const [availableCases, setAvailableCases] = useState<CaseOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL_PENDING');
+  const [filter, setFilter] = useState<FilterKey>('ALL_PENDING');
 
   const [reassignDoc, setReassignDoc] = useState<InboxDocument | null>(null);
 
@@ -48,7 +51,6 @@ export default function FilingInboxPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-      // Fetch unassigned/review-required documents & available cases
       const [docsRes, casesRes] = await Promise.all([
         fetch(`${API_URL}/api/v1/documents`, {
           headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -83,6 +85,22 @@ export default function FilingInboxPage() {
     fetchInboxData();
   }, []);
 
+  const counts = {
+    ALL_PENDING: documents.filter(
+      (d) =>
+        d.matchStatus === 'CONFIRMATION_REQUIRED' ||
+        d.matchStatus === 'NO_MATCH' ||
+        !d.case
+    ).length,
+    CONFIRMATION_REQUIRED: documents.filter(
+      (d) => d.matchStatus === 'CONFIRMATION_REQUIRED'
+    ).length,
+    NO_MATCH: documents.filter((d) => d.matchStatus === 'NO_MATCH').length,
+    FILED: documents.filter(
+      (d) => d.matchStatus === 'CONFIRMED' || d.matchStatus === 'AUTO_MATCHED'
+    ).length,
+  };
+
   const pendingDocuments = documents.filter((doc) => {
     const matchesSearch =
       doc.originalFilename.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -90,102 +108,120 @@ export default function FilingInboxPage() {
 
     if (!matchesSearch) return false;
 
-    if (statusFilter === 'ALL_PENDING') {
-      return doc.matchStatus === 'CONFIRMATION_REQUIRED' || doc.matchStatus === 'NO_MATCH' || !doc.case;
+    if (filter === 'ALL_PENDING') {
+      return (
+        doc.matchStatus === 'CONFIRMATION_REQUIRED' ||
+        doc.matchStatus === 'NO_MATCH' ||
+        !doc.case
+      );
     }
-    if (statusFilter === 'CONFIRMATION_REQUIRED') return doc.matchStatus === 'CONFIRMATION_REQUIRED';
-    if (statusFilter === 'NO_MATCH') return doc.matchStatus === 'NO_MATCH';
-    if (statusFilter === 'FILED') return doc.matchStatus === 'CONFIRMED' || doc.matchStatus === 'AUTO_MATCHED';
+    if (filter === 'CONFIRMATION_REQUIRED')
+      return doc.matchStatus === 'CONFIRMATION_REQUIRED';
+    if (filter === 'NO_MATCH') return doc.matchStatus === 'NO_MATCH';
+    if (filter === 'FILED')
+      return (
+        doc.matchStatus === 'CONFIRMED' || doc.matchStatus === 'AUTO_MATCHED'
+      );
 
     return true;
   });
 
   return (
-    <div className="container max-w-6xl mx-auto py-8 px-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <Inbox className="h-6 w-6 text-brand" />
-            Filing Inbox & Case Matching
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Review uploaded legal documents, confirm candidate case matches, or reassign filings safely.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={fetchInboxData} disabled={isLoading}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh Inbox
-        </Button>
-      </div>
+    <div className="page-shell space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Needs your attention
+        </h1>
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          Documents we couldn’t file automatically. Pick the right case — or
+          choose a different one.
+        </p>
+      </header>
 
-      {/* Filter and Search Bar */}
       <Card>
-        <CardContent className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search uploads by filename or type..."
-              className="pl-9"
+              placeholder="Search uploads…"
+              className="pl-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <div className="flex bg-secondary p-1 rounded-lg text-xs font-medium">
+          <div
+            role="tablist"
+            className="flex flex-wrap items-center gap-1 rounded-lg bg-secondary p-1 text-sm font-medium"
+          >
+            {(
+              [
+                { key: 'ALL_PENDING', label: 'All', count: counts.ALL_PENDING },
+                { key: 'CONFIRMATION_REQUIRED', label: 'Confirm', count: counts.CONFIRMATION_REQUIRED },
+                { key: 'NO_MATCH', label: 'No match', count: counts.NO_MATCH },
+                { key: 'FILED', label: 'Filed', count: counts.FILED },
+              ] as Array<{ key: FilterKey; label: string; count: number }>
+            ).map((tab) => (
               <button
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  statusFilter === 'ALL_PENDING' ? 'bg-card text-foreground shadow-sm font-semibold' : 'text-muted-foreground'
-                }`}
-                onClick={() => setStatusFilter('ALL_PENDING')}
+                key={tab.key}
+                role="tab"
+                aria-selected={filter === tab.key}
+                onClick={() => setFilter(tab.key)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-all',
+                  filter === tab.key
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
-                Needs Review ({documents.filter((d) => d.matchStatus === 'CONFIRMATION_REQUIRED' || d.matchStatus === 'NO_MATCH').length})
+                {tab.label}
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                    filter === tab.key
+                      ? 'bg-brand-soft text-brand'
+                      : 'bg-secondary text-muted-foreground'
+                  )}
+                >
+                  {tab.count}
+                </span>
               </button>
-              <button
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  statusFilter === 'CONFIRMATION_REQUIRED' ? 'bg-card text-foreground shadow-sm font-semibold' : 'text-muted-foreground'
-                }`}
-                onClick={() => setStatusFilter('CONFIRMATION_REQUIRED')}
-              >
-                Review ({documents.filter((d) => d.matchStatus === 'CONFIRMATION_REQUIRED').length})
-              </button>
-              <button
-                className={`px-3 py-1.5 rounded-md transition-all ${
-                  statusFilter === 'NO_MATCH' ? 'bg-card text-foreground shadow-sm font-semibold' : 'text-muted-foreground'
-                }`}
-                onClick={() => setStatusFilter('NO_MATCH')}
-              >
-                No Match ({documents.filter((d) => d.matchStatus === 'NO_MATCH').length})
-              </button>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Inbox List */}
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2].map((i) => (
             <Card key={i} className="animate-pulse">
-              <CardContent className="h-32 bg-secondary/30 rounded-xl" />
+              <CardContent className="h-32 rounded-xl bg-secondary/30" />
             </Card>
           ))}
         </div>
       ) : pendingDocuments.length === 0 ? (
-        <Card className="p-12 text-center">
-          <FileCheck className="mx-auto h-12 w-12 text-muted-foreground opacity-40" />
-          <h3 className="mt-4 text-base font-semibold text-foreground">All Uploaded Documents Filed</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            No unassigned or review-pending documents match your current filter.
-          </p>
+        <Card>
+          <CardContent className="py-6">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-success-soft text-success">
+                <FileCheck className="h-7 w-7" strokeWidth={1.75} />
+              </div>
+              <h3 className="text-base font-semibold text-foreground">
+                You’re all caught up
+              </h3>
+              <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
+                Every document in your workspace is filed. New uploads will
+                appear here if we ever need your input.
+              </p>
+            </div>
+          </CardContent>
         </Card>
       ) : (
         <div className="space-y-6">
           {pendingDocuments.map((doc) => {
-            // Parse candidates stored in metadata if available
-            const candidatesMeta = doc.metadata?.find((m) => m.fieldName === 'matching_candidates');
+            const candidatesMeta = doc.metadata?.find(
+              (m) => m.fieldName === 'matching_candidates'
+            );
             let candidates: CaseCandidate[] = [];
             if (candidatesMeta?.fieldValue) {
               try {
@@ -197,10 +233,12 @@ export default function FilingInboxPage() {
 
             return (
               <div key={doc.id} className="space-y-3">
-                <div className="flex items-center justify-between bg-card border rounded-xl p-4 shadow-sm">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{doc.originalFilename}</h3>
+                <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-base font-semibold text-foreground">
+                        {doc.originalFilename}
+                      </h3>
                       {doc.documentType && (
                         <Badge variant="outline" className="text-[11px]">
                           {doc.documentType}
@@ -208,22 +246,20 @@ export default function FilingInboxPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Uploaded {new Date(doc.uploadedAt).toLocaleDateString()} • Status: <span className="font-mono text-foreground">{doc.processingStatus}</span>
+                      Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
                     </p>
                   </div>
 
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="text-xs"
                     onClick={() => setReassignDoc(doc)}
                   >
-                    Manual Reassign
-                    <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                    Pick a different case
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
-                {/* Candidate Suggestions Component */}
                 <MatchingCandidatesCard
                   documentId={doc.id}
                   documentTitle={doc.originalFilename}
@@ -239,7 +275,6 @@ export default function FilingInboxPage() {
         </div>
       )}
 
-      {/* Reassign Modal Dialog */}
       {reassignDoc && (
         <ReassignCaseDialog
           open={!!reassignDoc}

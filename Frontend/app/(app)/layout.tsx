@@ -25,14 +25,14 @@ export default function AppLayout({
 
   if (!authorized) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+      <div className="flex h-screen w-full items-center justify-center bg-surface">
+        <Loader2 className="h-6 w-6 animate-spin text-brand" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-secondary/30">
+    <div className="flex h-screen overflow-hidden bg-surface">
       <aside className="hidden shrink-0 border-r lg:block">
         <Sidebar />
       </aside>

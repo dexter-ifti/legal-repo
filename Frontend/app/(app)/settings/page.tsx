@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { User, Building2, Bell, Shield, Zap, Save, Check, Loader2, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Building2, Bell, Shield, Save, Check, Loader2, Users } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -58,25 +58,27 @@ export default function SettingsPage() {
 
   function saveProfile(e: React.FormEvent) {
     e.preventDefault();
-    toast.success('Profile updated successfully');
+    toast.success('Your details were saved.');
   }
 
   function saveNotifications() {
-    toast.success('Notification preferences saved');
+    toast.success('Notification preferences saved.');
   }
 
   function saveAutomation() {
-    toast.success('Automation settings saved');
+    toast.success('Automation settings saved.');
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6 lg:p-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your account, preferences, and automation rules
+    <div className="page-shell space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Settings
+        </h1>
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          Manage your account, your team, and how documents are handled.
         </p>
-      </div>
+      </header>
 
       <Tabs defaultValue="profile">
         <TabsList>
@@ -86,40 +88,36 @@ export default function SettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="organization" className="gap-1.5">
             <Building2 className="h-4 w-4" />
-            Organization
+            Team
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5">
             <Bell className="h-4 w-4" />
             Notifications
           </TabsTrigger>
           <TabsTrigger value="automation" className="gap-1.5">
-            <Zap className="h-4 w-4" />
-            Automation
-          </TabsTrigger>
-          <TabsTrigger value="security" className="gap-1.5">
             <Shield className="h-4 w-4" />
-            Security
+            Automation
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="mt-4">
+        <TabsContent value="profile" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Profile Information</CardTitle>
-              <CardDescription>Update your personal details</CardDescription>
+              <CardTitle>Your details</CardTitle>
+              <CardDescription>How you appear to your team</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={saveProfile} className="space-y-4">
+              <form onSubmit={saveProfile} className="space-y-5">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-xl font-bold text-white">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand text-xl font-semibold text-brand-foreground">
                     {user.initials}
                   </div>
                   <div>
                     <Button type="button" variant="outline" size="sm">
-                      Change Photo
+                      Change photo
                     </Button>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      JPG or PNG, max 2MB
+                      JPG or PNG, up to 2 MB
                     </p>
                   </div>
                 </div>
@@ -135,13 +133,18 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
-                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div className="flex justify-end">
                   <Button type="submit">
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Changes
+                    <Save className="h-4 w-4" />
+                    Save changes
                   </Button>
                 </div>
               </form>
@@ -149,167 +152,89 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="organization" className="mt-4">
+        <TabsContent value="organization" className="mt-6">
           <OrganizationSettings />
         </TabsContent>
 
-        <TabsContent value="notifications" className="mt-4">
+        <TabsContent value="notifications" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Notification Preferences</CardTitle>
-              <CardDescription>Choose what you want to be notified about</CardDescription>
+              <CardTitle>Notifications</CardTitle>
+              <CardDescription>Choose what you’d like to hear about</CardDescription>
             </CardHeader>
             <CardContent className="space-y-1">
               <NotificationToggle
                 label="Upload complete"
-                description="When document uploads finish processing"
+                description="When a document finishes processing"
                 checked={notifications.uploadComplete}
                 onChange={(v) => setNotifications({ ...notifications, uploadComplete: v })}
               />
               <NotificationToggle
-                label="Review ready"
-                description="When a document is ready for your review"
+                label="Needs your review"
+                description="When a document is waiting for your confirmation"
                 checked={notifications.reviewReady}
                 onChange={(v) => setNotifications({ ...notifications, reviewReady: v })}
               />
               <NotificationToggle
-                label="Filing confirmation"
-                description="When documents are successfully filed"
+                label="Filing complete"
+                description="When documents get filed automatically"
                 checked={notifications.filingConfirm}
                 onChange={(v) => setNotifications({ ...notifications, filingConfirm: v })}
               />
               <NotificationToggle
-                label="Weekly digest"
-                description="A weekly summary of activity across your cases"
+                label="Weekly summary"
+                description="A short recap of activity in your workspace"
                 checked={notifications.weeklyDigest}
                 onChange={(v) => setNotifications({ ...notifications, weeklyDigest: v })}
               />
               <NotificationToggle
                 label="Security alerts"
-                description="Important security and access notifications"
+                description="Important access and security notifications"
                 checked={notifications.securityAlerts}
                 onChange={(v) => setNotifications({ ...notifications, securityAlerts: v })}
               />
               <Separator className="my-4" />
               <div className="flex justify-end">
                 <Button onClick={saveNotifications}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Preferences
+                  <Save className="h-4 w-4" />
+                  Save preferences
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="automation" className="mt-4 space-y-4">
+        <TabsContent value="automation" className="mt-6 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">AI Automation Rules</CardTitle>
-              <CardDescription>Configure how LexFlow handles documents automatically</CardDescription>
+              <CardTitle>How LexFlow handles documents</CardTitle>
+              <CardDescription>Adjust how much we do automatically</CardDescription>
             </CardHeader>
             <CardContent className="space-y-1">
               <NotificationToggle
                 label="Auto-classify documents"
-                description="Use AI to categorize documents on upload"
+                description="Try to identify the document type on upload"
                 checked={autoClassify}
                 onChange={setAutoClassify}
               />
               <NotificationToggle
-                label="Auto-file low-risk documents"
-                description="Automatically file documents with 95%+ match confidence"
+                label="Auto-file when very confident"
+                description="Skip asking you when we’re 95%+ sure of the case"
                 checked={autoFile}
                 onChange={setAutoFile}
               />
               <NotificationToggle
-                label="High-accuracy OCR mode"
-                description="Use enhanced OCR for scanned documents (slower but more accurate)"
+                label="High-accuracy reading"
+                description="Use the slower but more accurate reader for scanned pages"
                 checked={ocrHighAccuracy}
                 onChange={setOcrHighAccuracy}
               />
               <Separator className="my-4" />
               <div className="flex justify-end">
                 <Button onClick={saveAutomation}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Rules
+                  <Save className="h-4 w-4" />
+                  Save
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Template Library</CardTitle>
-              <CardDescription>Document templates used for matching</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {[
-                  { name: 'Motion Template v3', category: 'Pleading', rate: 94 },
-                  { name: 'Discovery Request Template', category: 'Discovery', rate: 91 },
-                  { name: 'Settlement Agreement Template', category: 'Contract', rate: 88 },
-                  { name: 'Court Filing Cover Sheet', category: 'Court Filing', rate: 99 },
-                ].map((t) => (
-                  <div key={t.name} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.category}</p>
-                    </div>
-                    <Badge variant="outline" className={t.rate >= 90 ? 'border-success/30 text-success' : 'border-warning/30 text-warning'}>
-                      {t.rate}% match rate
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Security Settings</CardTitle>
-              <CardDescription>Manage authentication and access</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Two-factor authentication</p>
-                  <p className="text-xs text-muted-foreground">Add an extra layer of security to your account</p>
-                </div>
-                <Badge className="bg-success-soft text-success">
-                  <Check className="mr-1 h-3 w-3" />
-                  Enabled
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Password</p>
-                  <p className="text-xs text-muted-foreground">Last changed 3 months ago</p>
-                </div>
-                <Button variant="outline" size="sm">Change</Button>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border p-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Active sessions</p>
-                  <p className="text-xs text-muted-foreground">2 devices currently signed in</p>
-                </div>
-                <Button variant="outline" size="sm">View</Button>
-              </div>
-              <Separator />
-              <div>
-                <p className="mb-2 text-sm font-medium text-foreground">Recent activity</p>
-                <div className="space-y-2">
-                  {[
-                    { action: 'Sign in from Chrome on macOS', time: '2 hours ago' },
-                    { action: 'Sign in from iPhone app', time: '1 day ago' },
-                    { action: 'Password changed', time: '3 months ago' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">{item.action}</span>
-                      <span className="text-xs text-muted-foreground">{item.time}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </CardContent>
           </Card>
@@ -350,47 +275,44 @@ function OrganizationSettings() {
   const [memberCount, setMemberCount] = useState(0);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [savingName, setSavingName] = useState(false);
-  const [roleUpdatingId, setRoleUpdatingId] = useState<string | null>(null);
 
-  // Per PRD ("MVP Roles"): simplified Admin / Member. Only ADMIN sees controls.
   const isAdmin = !user.isDemo && user.role === 'ADMIN';
 
-  const authHeaders = useCallback((): Record<string, string> => {
+  const authHeaders = (): Record<string, string> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     return token ? { Authorization: `Bearer ${token}` } : {};
-  }, []);
+  };
 
-  const loadOrganization = useCallback(async () => {
+  useEffect(() => {
     if (user.isDemo) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    try {
-      const [orgRes, membersRes] = await Promise.all([
-        fetch(`${API_URL}/api/v1/organizations/me`, { headers: authHeaders() }),
-        fetch(`${API_URL}/api/v1/organizations/me/members`, { headers: authHeaders() }),
-      ]);
+    (async () => {
+      try {
+        const [orgRes, membersRes] = await Promise.all([
+          fetch(`${API_URL}/api/v1/organizations/me`, { headers: authHeaders() }),
+          fetch(`${API_URL}/api/v1/organizations/me/members`, { headers: authHeaders() }),
+        ]);
 
-      if (orgRes.ok) {
-        const body = await orgRes.json();
-        setOrgName(body.data?.organization?.name || '');
-        setMemberCount(body.data?.organization?.memberCount ?? 0);
+        if (orgRes.ok) {
+          const body = await orgRes.json();
+          setOrgName(body.data?.organization?.name || '');
+          setMemberCount(body.data?.organization?.memberCount ?? 0);
+        }
+        if (membersRes.ok) {
+          const body = await membersRes.json();
+          setMembers(body.data?.members || []);
+        }
+      } catch (err) {
+        console.error('Failed to load team:', err);
+      } finally {
+        setLoading(false);
       }
-      if (membersRes.ok) {
-        const body = await membersRes.json();
-        setMembers(body.data?.members || []);
-      }
-    } catch (err: unknown) {
-      console.error('Failed to load organization:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [API_URL, user.isDemo, authHeaders]);
-
-  useEffect(() => {
-    loadOrganization();
-  }, [loadOrganization]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.isDemo]);
 
   const saveOrgName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -403,36 +325,12 @@ function OrganizationSettings() {
         body: JSON.stringify({ name: orgName }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error?.message || 'Failed to update organization');
-      toast.success('Organization updated');
+      if (!res.ok) throw new Error(body?.error?.message || 'Couldn’t save.');
+      toast.success('Team details updated.');
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update organization');
+      toast.error(err instanceof Error ? err.message : 'Couldn’t save.');
     } finally {
       setSavingName(false);
-    }
-  };
-
-  const changeMemberRole = async (memberId: string, role: string) => {
-    setRoleUpdatingId(memberId);
-    try {
-      const res = await fetch(`${API_URL}/api/v1/organizations/me/members/${memberId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
-        body: JSON.stringify({ role }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error?.message || 'Failed to update role');
-
-      setMembers((prev) =>
-        prev.map((m) => (m.id === memberId ? { ...m, role: body.data.member.role } : m))
-      );
-      toast.success(`Role updated to ${role.toLowerCase()}`);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update role');
-      // Re-sync on failure
-      loadOrganization();
-    } finally {
-      setRoleUpdatingId(null);
     }
   };
 
@@ -440,12 +338,12 @@ function OrganizationSettings() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Organization</CardTitle>
-          <CardDescription>Tenant and member management</CardDescription>
+          <CardTitle>Team</CardTitle>
+          <CardDescription>Members of your workspace</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            You are in demo mode. Sign in with a real account to manage your organization and team roles.
+            You’re in demo mode. Sign in with a real account to manage your team.
           </p>
         </CardContent>
       </Card>
@@ -455,21 +353,20 @@ function OrganizationSettings() {
   if (loading) {
     return (
       <div className="flex h-40 items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-brand" />
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Organization profile */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Organization Details</CardTitle>
-          <CardDescription>Your firm&apos;s tenant profile</CardDescription>
+          <CardTitle>Workspace details</CardTitle>
+          <CardDescription>Your firm’s profile</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={saveOrgName} className="space-y-4">
+          <form onSubmit={saveOrgName} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="firm">Firm name</Label>
@@ -482,9 +379,9 @@ function OrganizationSettings() {
               </div>
               <div className="space-y-2">
                 <Label>Team size</Label>
-                <div className="flex h-10 items-center justify-between rounded-md border px-3">
-                  <span className="text-sm font-medium">
-                    {memberCount} member{memberCount === 1 ? '' : 's'}
+                <div className="flex h-11 items-center justify-between rounded-lg border bg-background px-3.5">
+                  <span className="text-[15px] font-medium">
+                    {memberCount} {memberCount === 1 ? 'member' : 'members'}
                   </span>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -494,9 +391,9 @@ function OrganizationSettings() {
               <div className="flex justify-end">
                 <Button type="submit" disabled={savingName}>
                   {savingName ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="mr-2 h-4 w-4" />
+                    <Save className="h-4 w-4" />
                   )}
                   Save
                 </Button>
@@ -506,22 +403,21 @@ function OrganizationSettings() {
         </CardContent>
       </Card>
 
-      {/* Invite members (Admin only) */}
       {isAdmin && <InviteMemberCard />}
 
-      {/* Members & roles */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Members &amp; Roles</CardTitle>
+          <CardTitle>Members</CardTitle>
           <CardDescription>
             {isAdmin
-              ? 'Manage your team. Members can upload, search, and view; Admins manage the organization.'
-              : 'Team roster for your organization. Only Admins can change roles.'}
+              ? 'Manage who can upload, search, and view documents.'
+              : 'Team roster. Only Admins can change roles.'}
           </CardDescription>
-        </CardHeader>        <CardContent className="space-y-1">
+        </CardHeader>
+        <CardContent className="space-y-1">
           {members.length === 0 ? (
             <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-              No members found.
+              No members yet.
             </p>
           ) : (
             members.map((member) => (
@@ -532,40 +428,71 @@ function OrganizationSettings() {
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold uppercase text-muted-foreground">
                     {member.name
-                      ? member.name.trim().split(' ').slice(0, 2).map((p) => p[0]).join('')
+                      ? member.name
+                          .trim()
+                          .split(' ')
+                          .slice(0, 2)
+                          .map((p) => p[0])
+                          .join('')
                       : '?'}
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
                       {member.name || 'Unnamed member'}
                       {member.id === user.id && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>
+                        <span className="ml-1.5 text-xs text-muted-foreground">
+                          (you)
+                        </span>
                       )}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {member.email}
+                    </p>
                   </div>
                 </div>
 
                 {isAdmin ? (
-                  <Select
-                    value={member.role}
-                    onValueChange={(value) => changeMemberRole(member.id, value)}
-                    disabled={roleUpdatingId === member.id}
-                  >
-                    <SelectTrigger className="w-[120px] shrink-0">
-                      {roleUpdatingId === member.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <SelectValue />
-                      )}
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
-                      <SelectItem value="MEMBER">Member</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <MemberRoleSelect
+                    memberId={member.id}
+                    role={member.role}
+                    onChange={async (newRole) => {
+                      try {
+                        const res = await fetch(
+                          `${API_URL}/api/v1/organizations/me/members/${member.id}`,
+                          {
+                            method: 'PATCH',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              ...authHeaders(),
+                            },
+                            body: JSON.stringify({ role: newRole }),
+                          }
+                        );
+                        const body = await res.json().catch(() => null);
+                        if (!res.ok)
+                          throw new Error(
+                            body?.error?.message || 'Couldn’t change role.'
+                          );
+                        setMembers((prev) =>
+                          prev.map((m) =>
+                            m.id === member.id ? { ...m, role: newRole } : m
+                          )
+                        );
+                        toast.success(`Role updated to ${newRole.toLowerCase()}.`);
+                      } catch (err) {
+                        toast.error(
+                          err instanceof Error
+                            ? err.message
+                            : 'Couldn’t change role.'
+                        );
+                      }
+                    }}
+                  />
                 ) : (
-                  <Badge variant={member.role === 'ADMIN' ? 'default' : 'outline'} className="shrink-0">
+                  <Badge
+                    variant={member.role === 'ADMIN' ? 'default' : 'outline'}
+                    className="shrink-0"
+                  >
                     {member.role}
                   </Badge>
                 )}
@@ -575,6 +502,45 @@ function OrganizationSettings() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function MemberRoleSelect({
+  memberId,
+  role,
+  onChange,
+}: {
+  memberId: string;
+  role: string;
+  onChange: (role: string) => Promise<void> | void;
+}) {
+  const [updating, setUpdating] = useState(false);
+
+  return (
+    <Select
+      value={role}
+      onValueChange={async (value) => {
+        setUpdating(true);
+        try {
+          await onChange(value);
+        } finally {
+          setUpdating(false);
+        }
+      }}
+      disabled={updating}
+    >
+      <SelectTrigger className="w-[120px] shrink-0">
+        {updating ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <SelectValue />
+        )}
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="ADMIN">Admin</SelectItem>
+        <SelectItem value="MEMBER">Member</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -599,30 +565,29 @@ function InviteMemberCard() {
   const [invites, setInvites] = useState<OrgInvite[]>([]);
   const [invitesLoading, setInvitesLoading] = useState(true);
 
-  const authHeaders = useCallback((): Record<string, string> => {
+  const authHeaders = (): Record<string, string> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     return token ? { Authorization: `Bearer ${token}` } : {};
-  }, []);
-
-  const loadInvites = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/v1/organizations/me/invites`, {
-        headers: authHeaders(),
-      });
-      if (res.ok) {
-        const body = await res.json();
-        setInvites(body.data?.invites || []);
-      }
-    } catch (err: unknown) {
-      console.error('Failed to load invites:', err);
-    } finally {
-      setInvitesLoading(false);
-    }
-  }, [API_URL, authHeaders]);
+  };
 
   useEffect(() => {
-    loadInvites();
-  }, [loadInvites]);
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/organizations/me/invites`, {
+          headers: authHeaders(),
+        });
+        if (res.ok) {
+          const body = await res.json();
+          setInvites(body.data?.invites || []);
+        }
+      } catch (err) {
+        console.error('Failed to load invites:', err);
+      } finally {
+        setInvitesLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const generateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -635,17 +600,22 @@ function InviteMemberCard() {
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
       });
       const body = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(body?.error?.message || 'Failed to create invite');
+      if (!res.ok) throw new Error(body?.error?.message || 'Couldn’t create invite.');
 
-      // Keep the link on screen — do NOT reload the section here, otherwise
-      // this card unmounts and the user loses the link before copying it.
       setGeneratedLink(body.data.inviteUrl);
       setGeneratedEmail(body.data.invite.email);
-      toast.success('Invite link generated — copy it now.');
+      toast.success('Invite link ready — copy and share it.');
       setInviteEmail('');
-      loadInvites();
+      // refresh invites list
+      const invitesRes = await fetch(`${API_URL}/api/v1/organizations/me/invites`, {
+        headers: authHeaders(),
+      });
+      if (invitesRes.ok) {
+        const b = await invitesRes.json();
+        setInvites(b.data?.invites || []);
+      }
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create invite');
+      toast.error(err instanceof Error ? err.message : 'Couldn’t create invite.');
     } finally {
       setGenerating(false);
     }
@@ -656,31 +626,33 @@ function InviteMemberCard() {
     try {
       await navigator.clipboard.writeText(generatedLink);
       setCopied(true);
-      toast.success('Invite link copied to clipboard');
+      toast.success('Link copied.');
     } catch {
-      // Clipboard API can be unavailable; the link remains visible to copy manually.
-      toast.error('Copy failed — select and copy the link manually.');
+      toast.error('Copy failed — please select and copy manually.');
     }
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Invite Member</CardTitle>
+        <CardTitle>Invite a teammate</CardTitle>
         <CardDescription>
-          Generate a single-use signup link. It expires in 7 days.
+          A one-time link that expires in 7 days.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={generateInvite} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <form
+          onSubmit={generateInvite}
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
           <div className="flex-1 space-y-2">
-            <Label htmlFor="invite-email">Email address</Label>
+            <Label htmlFor="invite-email">Email</Label>
             <Input
               id="invite-email"
               type="email"
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="colleague@chambers.com"
+              placeholder="colleague@firm.com"
               required
             />
           </div>
@@ -699,20 +671,19 @@ function InviteMemberCard() {
           <Button type="submit" disabled={generating}>
             {generating ? (
               <>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                Generating...
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating…
               </>
             ) : (
-              'Generate Invite Link'
+              'Generate link'
             )}
           </Button>
         </form>
 
         {generatedLink && (
           <div className="space-y-2 rounded-lg border border-success/30 bg-success-soft/30 p-3">
-            <p className="text-xs text-muted-foreground">
-              Invite for <span className="font-medium text-foreground">{generatedEmail}</span> —
-              share this link with them:
+            <p className="text-sm text-muted-foreground">
+              Invite for <span className="font-medium text-foreground">{generatedEmail}</span> — share this link with them:
             </p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-md bg-background px-2 py-1.5 text-xs text-muted-foreground">
@@ -721,7 +692,7 @@ function InviteMemberCard() {
               <Button type="button" size="sm" variant="outline" onClick={copyLink}>
                 {copied ? (
                   <>
-                    <Check className="mr-1.5 h-3.5 w-3.5 text-success" />
+                    <Check className="h-3.5 w-3.5 text-success" />
                     Copied
                   </>
                 ) : (
@@ -732,30 +703,32 @@ function InviteMemberCard() {
           </div>
         )}
 
-        {/* Pending / recent invites */}
         <Separator />
         <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground">Invites</p>
+          <p className="text-sm font-medium text-foreground">Recent invites</p>
           {invitesLoading ? (
             <div className="flex items-center justify-center py-4">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             </div>
           ) : invites.length === 0 ? (
             <p className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-              No invites yet. Generate a link above to invite your first teammate.
+              No invites yet.
             </p>
           ) : (
             <div className="space-y-1">
               {invites.map((invite) => {
                 const isPending = invite.status === 'PENDING';
-                const isExpired = isPending && new Date(invite.expiresAt).getTime() <= Date.now();
+                const isExpired =
+                  isPending && new Date(invite.expiresAt).getTime() <= Date.now();
                 return (
                   <div
                     key={invite.id}
                     className="flex items-center justify-between gap-3 rounded-lg border p-2.5"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{invite.email}</p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {invite.email}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {isPending
                           ? isExpired
@@ -775,7 +748,7 @@ function InviteMemberCard() {
                         className={`text-[10px] ${
                           isPending && !isExpired
                             ? 'border-warning/40 text-warning'
-                            : 'border-neutral/30 text-muted-foreground'
+                            : 'text-muted-foreground'
                         }`}
                       >
                         {isPending && isExpired ? 'EXPIRED' : invite.status}

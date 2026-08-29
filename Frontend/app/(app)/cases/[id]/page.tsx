@@ -113,15 +113,15 @@ export default function CaseDetailPage() {
       }
 
       setApiCase({
-        name: c.title || 'Untitled Case',
-        caseNumber: c.caseNumber || 'N/A',
-        cnrNumber: c.cnrNumber || 'N/A',
-        client: c.clientName || 'Unspecified Client',
-        opposingParty: c.opposingParty || 'N/A',
-        court: c.court || 'N/A',
-        judge: c.judge || 'N/A',
+        name: c.title || 'Untitled case',
+        caseNumber: c.caseNumber || '—',
+        cnrNumber: c.cnrNumber || '—',
+        client: c.clientName || 'Unspecified client',
+        opposingParty: c.opposingParty || '—',
+        court: c.court || '—',
+        judge: c.judge || '—',
         status: c.status?.toLowerCase() || 'active',
-        notes: c.notes || 'No specific notes attached to this legal case.',
+        notes: c.notes || 'No notes for this case yet.',
       });
 
       if (docsRes.ok) {
@@ -135,7 +135,7 @@ export default function CaseDetailPage() {
                 id: d.id,
                 title: d.originalFilename,
                 fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
-                category: d.documentType || 'UNCLASSIFIED',
+                category: d.documentType || 'Not classified',
                 pageCount: d.pageCount || 1,
                 fileSize: d.fileSize ? Number(d.fileSize) : 0,
                 uploadedAt: d.uploadedAt,
@@ -159,7 +159,6 @@ export default function CaseDetailPage() {
     }
   }, [userLoading, loadCase]);
 
-  // Demo mode keeps the mock experience; real users only ever see API data.
   const usingMock = user.isDemo;
 
   const rawMockCase = usingMock ? cases.find((c) => c.id === caseId) : undefined;
@@ -168,13 +167,13 @@ export default function CaseDetailPage() {
       ? {
           name: rawMockCase.name,
           caseNumber: rawMockCase.caseNumber,
-          cnrNumber: 'N/A',
+          cnrNumber: '—',
           client: rawMockCase.client,
-          opposingParty: 'N/A',
-          court: 'N/A',
-          judge: 'N/A',
+          opposingParty: '—',
+          court: '—',
+          judge: '—',
           status: rawMockCase.status,
-          notes: 'No specific notes attached to this legal case.',
+          notes: 'No notes for this case yet.',
         }
       : {
           name: 'State vs. Rajesh Sharma & Ors.',
@@ -185,7 +184,8 @@ export default function CaseDetailPage() {
           court: 'Bombay High Court',
           judge: 'Hon. Justice K. R. Vyas',
           status: 'active',
-          notes: 'Interim stay granted on notice. Final arguments scheduled before Division Bench.',
+          notes:
+            'Interim stay granted on notice. Final arguments scheduled before Division Bench.',
         }
     : apiCase || {
         name: '',
@@ -237,26 +237,26 @@ export default function CaseDetailPage() {
 
   if (!usingMock && (notFound || hasError)) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 p-4 md:p-6 lg:p-8">
+      <div className="page-shell space-y-4">
         <Button variant="ghost" size="sm" onClick={() => router.push('/cases')}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          Back to Cases
+          <ArrowLeft className="h-4 w-4" />
+          Back to cases
         </Button>
         <EmptyState
           icon={FolderOpen}
-          title={notFound ? 'Case not found' : 'Failed to load case'}
+          title={notFound ? 'Case not found' : 'Couldn’t load this case'}
           description={
             notFound
-              ? 'This case does not exist in your organization or has been deleted.'
-              : 'We could not reach the server. Your data was not changed — please retry.'
+              ? 'This case doesn’t exist in your workspace.'
+              : 'We couldn’t reach the server. Your data is safe — please try again.'
           }
           action={
             notFound ? (
               <Button asChild>
-                <Link href="/cases">Back to Cases</Link>
+                <Link href="/cases">Back to cases</Link>
               </Button>
             ) : (
-              <Button onClick={loadCase}>Retry</Button>
+              <Button onClick={loadCase}>Try again</Button>
             )
           }
         />
@@ -265,30 +265,30 @@ export default function CaseDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
+    <div className="page-shell-wide space-y-6">
       <Button
         variant="ghost"
         size="sm"
         onClick={() => router.push('/cases')}
         className="mb-2"
       >
-        <ArrowLeft className="mr-1.5 h-4 w-4" />
-        Back to Cases
+        <ArrowLeft className="h-4 w-4" />
+        Back to cases
       </Button>
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex items-start gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-brand-soft text-brand">
             <FolderOpen className="h-7 w-7" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {caseData.name}
               </h1>
               <span
                 className={cn(
-                  'rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize',
+                  'rounded-full px-2.5 py-1 text-xs font-medium capitalize',
                   caseData.status === 'active' && 'bg-success-soft text-success',
                   caseData.status === 'pending' && 'bg-warning-soft text-warning',
                   caseData.status === 'closed' && 'bg-neutral-soft text-neutral-status'
@@ -297,49 +297,52 @@ export default function CaseDetailPage() {
                 {caseData.status}
               </span>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Filing No: <span className="font-medium text-foreground">{caseData.caseNumber}</span> · CNR: <span className="font-mono">{caseData.cnrNumber}</span>
+            <p className="mt-2 text-sm text-muted-foreground">
+              <span>Case number: </span>
+              <span className="font-medium text-foreground">{caseData.caseNumber}</span>
+              <span className="mx-2">·</span>
+              <span>CNR: </span>
+              <span className="font-mono">{caseData.cnrNumber}</span>
             </p>
           </div>
         </div>
-        <Button asChild>
+        <Button asChild size="lg">
           <Link href="/upload">
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Document
+            <Upload className="h-4 w-4" />
+            Add a document
           </Link>
         </Button>
-      </div>
+      </header>
 
-      {/* Case Metadata Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InfoCard icon={User} label="Client" value={caseData.client} />
-        <InfoCard icon={FileQuestion} label="Opposing Party" value={caseData.opposingParty} />
+        <InfoCard icon={FileQuestion} label="Opposing party" value={caseData.opposingParty} />
         <InfoCard icon={Building2} label="Court / Forum" value={caseData.court} />
-        <InfoCard icon={Gavel} label="Presiding Judge" value={caseData.judge} />
+        <InfoCard icon={Gavel} label="Presiding judge" value={caseData.judge} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2">
               <StickyNote className="h-4 w-4 text-brand" />
-              Case Brief & Notes
+              Case brief
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
+          <CardContent className="text-[15px] text-foreground/80">
             <p className="whitespace-pre-wrap leading-relaxed">{caseData.notes}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Document Progress</CardTitle>
-            <CardDescription>Legal filings completion rate</CardDescription>
+            <CardTitle>Filing progress</CardTitle>
+            <CardDescription>How complete the case file is</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Filing Status</span>
-              <span className="font-semibold text-foreground">{completionRate}% Completed</span>
+              <span className="text-muted-foreground">Completed</span>
+              <span className="font-semibold text-foreground">{completionRate}%</span>
             </div>
             <div className="h-2 w-full rounded-full bg-secondary">
               <div
@@ -347,29 +350,40 @@ export default function CaseDetailPage() {
                 style={{ width: `${completionRate}%` }}
               />
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground pt-2">
-              <div>Total: <span className="font-semibold text-foreground">{caseDocs.length}</span></div>
-              <div>Filed: <span className="font-semibold text-success">{filedCount}</span></div>
-              <div>Review: <span className="font-semibold text-warning">{reviewCount}</span></div>
-              <div>Processing: <span className="font-semibold text-brand">{processingCount}</span></div>
+            <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
+              <div className="rounded-lg bg-secondary/40 p-2.5">
+                <p className="text-muted-foreground">Total</p>
+                <p className="text-base font-semibold text-foreground">{caseDocs.length}</p>
+              </div>
+              <div className="rounded-lg bg-success-soft/40 p-2.5">
+                <p className="text-muted-foreground">Filed</p>
+                <p className="text-base font-semibold text-success">{filedCount}</p>
+              </div>
+              <div className="rounded-lg bg-warning-soft/40 p-2.5">
+                <p className="text-muted-foreground">Needs review</p>
+                <p className="text-base font-semibold text-warning">{reviewCount}</p>
+              </div>
+              <div className="rounded-lg bg-brand-soft/40 p-2.5">
+                <p className="text-muted-foreground">Processing</p>
+                <p className="text-base font-semibold text-brand">{processingCount}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Associated Case Documents Roster */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Associated Legal Documents</CardTitle>
+          <CardTitle>Documents in this case</CardTitle>
           <CardDescription>
-            Documents linked to this case ({caseDocs.length} files total)
+            {caseDocs.length} {caseDocs.length === 1 ? 'file' : 'files'} total
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="all">All ({caseDocs.length})</TabsTrigger>
-              <TabsTrigger value="review">Review ({reviewCount})</TabsTrigger>
+              <TabsTrigger value="review">Needs review ({reviewCount})</TabsTrigger>
               <TabsTrigger value="filed">Filed ({filedCount})</TabsTrigger>
               <TabsTrigger value="processing">Processing ({processingCount})</TabsTrigger>
             </TabsList>
@@ -379,12 +393,12 @@ export default function CaseDetailPage() {
                 <EmptyState
                   icon={FileText}
                   title="No documents in this view"
-                  description="Upload documents or select a different filter tab."
+                  description="Drop a PDF on the upload page and it will show up here."
                   action={
                     <Button asChild>
                       <Link href="/upload">
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Document
+                        <Upload className="h-4 w-4" />
+                        Upload a document
                       </Link>
                     </Button>
                   }
@@ -397,7 +411,7 @@ export default function CaseDetailPage() {
                       href={`/documents/${doc.id}`}
                       className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-secondary"
                     >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-semibold uppercase text-muted-foreground">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-xs font-semibold uppercase text-brand">
                         {doc.fileType}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -405,14 +419,14 @@ export default function CaseDetailPage() {
                           {doc.title}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {doc.category} · {doc.pageCount} pages · {formatFileSize(doc.fileSize)} · {formatRelativeTime(doc.uploadedAt)}
+                          {doc.category} · {doc.pageCount} {doc.pageCount === 1 ? 'page' : 'pages'} · {formatFileSize(doc.fileSize)} · {formatRelativeTime(doc.uploadedAt)}
                         </p>
                       </div>
                       <div className="hidden items-center gap-2 sm:flex">
                         {doc.ocrConfidence != null && (
-                          <Badge variant="outline" className="text-xs">
-                            {doc.ocrConfidence}% OCR
-                          </Badge>
+                          <span className="rounded-md border bg-card px-2 py-0.5 text-xs text-muted-foreground">
+                            {doc.ocrConfidence}% readable
+                          </span>
                         )}
                       </div>
                       <StatusBadge status={doc.status} />

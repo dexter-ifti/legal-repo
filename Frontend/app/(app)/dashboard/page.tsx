@@ -53,14 +53,13 @@ const activityIconMap = {
   create: { icon: FileText, color: 'text-neutral-status', bg: 'bg-neutral-soft' },
 };
 
-/** Slice colors for the category pie (matches mock-data palette). */
 const CATEGORY_PALETTE = [
-  'hsl(199 89% 30%)',
-  'hsl(142 71% 38%)',
-  'hsl(38 92% 50%)',
+  'hsl(200 75% 32%)',
+  'hsl(152 60% 32%)',
+  'hsl(32 90% 44%)',
   'hsl(215 28% 35%)',
-  'hsl(0 72% 51%)',
-  'hsl(215 16% 47%)',
+  'hsl(0 70% 48%)',
+  'hsl(215 18% 42%)',
 ];
 
 export default function DashboardPage() {
@@ -70,7 +69,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Demo users see synthetic demo data only; never mix it with tenant records.
     if (userLoading || user.isDemo || typeof window === 'undefined') {
       return;
     }
@@ -113,19 +111,22 @@ export default function DashboardPage() {
           d.matchStatus === 'CONFIRMATION_REQUIRED' ||
           d.status === 'review'
       ).length;
-  const hoursSavedCount = isDemo ? dashboardStats.hoursSaved : Math.round(realDocs.length * 1.5);
+  const hoursSavedCount = isDemo
+    ? dashboardStats.hoursSaved
+    : Math.round(realDocs.length * 1.5);
 
   const formattedRealDocs = realDocs.map((d) => ({
     id: d.id,
     title: d.originalFilename || 'Document',
-    caseName: d.case?.title || 'Unassigned Case',
+    caseName: d.case?.title || 'Unassigned case',
     fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
     uploadedAt: d.uploadedAt || new Date().toISOString(),
-    status: (d.matchStatus === 'AUTO_MATCHED' || d.matchStatus === 'CONFIRMED'
-      ? 'filed'
-      : d.matchStatus === 'CONFIRMATION_REQUIRED'
-      ? 'review'
-      : 'uploaded') as DocStatus,
+    status:
+      d.matchStatus === 'AUTO_MATCHED' || d.matchStatus === 'CONFIRMED'
+        ? 'filed'
+        : d.matchStatus === 'CONFIRMATION_REQUIRED'
+        ? 'review'
+        : ('uploaded' as DocStatus),
   }));
 
   const displayDocs =
@@ -140,17 +141,13 @@ export default function DashboardPage() {
     : realCases.slice(0, 4).map((c) => ({
         id: c.id,
         name: c.title,
-        caseNumber: c.caseNumber || 'N/A',
-        practiceArea: c.caseType || 'General Legal',
+        caseNumber: c.caseNumber || '—',
+        practiceArea: c.caseType || 'General',
         documentCount: c._count?.documents || 0,
-        filedCount: 0,
-        reviewCount: 0,
       }));
 
-  const firstName = user.name ? user.name.trim().split(' ')[0] : 'Advocate';
+  const firstName = user.name ? user.name.trim().split(' ')[0] : 'there';
 
-  // Weekly upload activity computed from real tenant documents: uploads are
-  // bucketed per calendar day over the trailing 7 days (today last).
   const realWeeklyUploads = useMemo(() => {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const buckets: Array<{ key: string; day: string; count: number }> = [];
@@ -169,17 +166,18 @@ export default function DashboardPage() {
       if (!doc.uploadedAt) continue;
       const u = new Date(doc.uploadedAt);
       if (Number.isNaN(u.getTime())) continue;
-      const bucket = byKey.get(`${u.getFullYear()}-${u.getMonth()}-${u.getDate()}`);
+      const bucket = byKey.get(
+        `${u.getFullYear()}-${u.getMonth()}-${u.getDate()}`
+      );
       if (bucket) bucket.count += 1;
     }
     return buckets;
   }, [realDocs]);
 
-  // Category distribution from real document types, largest slice first.
   const realCategoryBreakdown = useMemo(() => {
     const counts = new Map<string, number>();
     for (const doc of realDocs) {
-      const category = doc.documentType?.trim() || 'Unclassified';
+      const category = doc.documentType?.trim() || 'Not classified';
       counts.set(category, (counts.get(category) || 0) + 1);
     }
     return Array.from(counts.entries())
@@ -195,65 +193,73 @@ export default function DashboardPage() {
   const categoryData = isDemo ? dashboardStats.categoryBreakdown : realCategoryBreakdown;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="page-shell-wide space-y-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Dashboard
+          <p className="text-sm text-muted-foreground">Welcome back</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+            Good to see you, {firstName}.
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Welcome back, {firstName}. Here&apos;s what&apos;s happening across your cases.
+          <p className="mt-2 text-[15px] text-muted-foreground">
+            Here’s what’s happening across your cases.
           </p>
         </div>
-        <Button asChild>
+        <Button asChild size="lg">
           <Link href="/upload">
-            <UploadIcon className="mr-2 h-4 w-4" />
-            Upload Documents
+            <UploadIcon className="h-4 w-4" />
+            Upload a document
           </Link>
         </Button>
-      </div>
+      </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={FileText}
-          label="Total Documents"
+          label="Documents"
           value={totalDocCount}
-          trend={isDemo ? "+12 this week" : undefined}
+          sublabel={isDemo ? '+12 this week' : 'across all your cases'}
           trendUp={isDemo}
         />
         <StatCard
           icon={CheckCircle2}
-          label="Filed"
+          label="Filed automatically"
           value={filedDocCount}
-          trend={isDemo ? `${dashboardStats.automationRate}% automation` : undefined}
-          trendUp={isDemo}
+          sublabel={
+            isDemo
+              ? `${dashboardStats.automationRate}% of uploads`
+              : 'without needing your help'
+          }
+          trendUp
         />
         <StatCard
           icon={Clock}
-          label="In Review"
+          label="Needs your review"
           value={inReviewCount}
-          trend={isDemo ? "Needs attention" : undefined}
+          sublabel={inReviewCount > 0 ? 'waiting for confirmation' : 'all clear'}
         />
         <StatCard
           icon={Hourglass}
-          label="Hours Saved"
+          label="Time saved"
           value={hoursSavedCount}
           suffix="h"
-          trend={isDemo ? "+18 this month" : undefined}
-          trendUp={isDemo}
+          sublabel={isDemo ? '+18 this month' : 'estimated'}
+          trendUp
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Weekly Upload Activity</CardTitle>
-            <CardDescription>Documents processed over the past week</CardDescription>
+            <CardTitle>This week’s activity</CardTitle>
+            <CardDescription>Documents added each day</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyUploadData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <BarChart
+                  data={weeklyUploadData}
+                  margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+                >
                   <XAxis
                     dataKey="day"
                     tickLine={false}
@@ -264,6 +270,7 @@ export default function DashboardPage() {
                     tickLine={false}
                     axisLine={false}
                     tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                    allowDecimals={false}
                   />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted))' }}
@@ -273,7 +280,11 @@ export default function DashboardPage() {
                       fontSize: '0.75rem',
                     }}
                   />
-                  <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="hsl(var(--brand))" />
+                  <Bar
+                    dataKey="count"
+                    radius={[6, 6, 0, 0]}
+                    fill="hsl(var(--brand))"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -282,18 +293,18 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Document Categories</CardTitle>
-            <CardDescription>Distribution by type</CardDescription>
+            <CardTitle>What you’re filing</CardTitle>
+            <CardDescription>By document type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="relative h-48 w-full">
+            <div className="relative h-44 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={
                       categoryData.length > 0
                         ? categoryData
-                        : [{ category: 'None', count: 1, fill: 'hsl(var(--muted))' }]
+                        : [{ category: 'Nothing yet', count: 1, fill: 'hsl(var(--muted))' }]
                     }
                     dataKey="count"
                     nameKey="category"
@@ -322,17 +333,23 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4 space-y-1.5">
               {categoryData.map((cat) => (
-                <div key={cat.category} className="flex items-center justify-between text-sm">
+                <div
+                  key={cat.category}
+                  className="flex items-center justify-between text-sm"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.fill }} />
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: cat.fill }}
+                    />
                     <span className="text-muted-foreground">{cat.category}</span>
                   </div>
                   <span className="font-medium text-foreground">{cat.count}</span>
                 </div>
               ))}
               {categoryData.length === 0 && (
-                <p className="text-center text-xs text-muted-foreground py-2">
-                  No documents uploaded yet.
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  No documents yet.
                 </p>
               )}
             </div>
@@ -340,17 +357,17 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <div>
-              <CardTitle className="text-base">Recent Documents</CardTitle>
-              <CardDescription>Latest uploads across all cases</CardDescription>
+              <CardTitle>Recent documents</CardTitle>
+              <CardDescription>Latest uploads across your cases</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/documents">
                 View all
-                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
           </CardHeader>
@@ -362,7 +379,7 @@ export default function DashboardPage() {
                   href={`/documents/${doc.id}`}
                   className="flex items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-secondary"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-semibold uppercase text-muted-foreground">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-xs font-semibold uppercase text-brand">
                     {doc.fileType}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -377,12 +394,16 @@ export default function DashboardPage() {
                 </Link>
               ))
             ) : (
-              <div className="py-8 text-center">
+              <div className="px-2 py-10 text-center">
                 <FileText className="mx-auto h-8 w-8 text-muted-foreground opacity-50" />
-                <p className="mt-2 text-sm font-medium text-foreground">No documents uploaded yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Upload a PDF to start automatic case matching and indexing.</p>
-                <Button size="sm" className="mt-3" asChild>
-                  <Link href="/upload">Upload First Document</Link>
+                <p className="mt-3 text-sm font-medium text-foreground">
+                  No documents yet
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Drop your first PDF and we’ll file it for you.
+                </p>
+                <Button size="sm" className="mt-4" asChild>
+                  <Link href="/upload">Upload your first document</Link>
                 </Button>
               </div>
             )}
@@ -391,16 +412,18 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Activity Feed</CardTitle>
+            <CardTitle>What’s happened lately</CardTitle>
             <ActivityIcon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {isDemo ? (
               activity.slice(0, 6).map((item) => {
                 const config = activityIconMap[item.type];
                 return (
                   <div key={item.id} className="flex gap-3">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${config.bg}`}>
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${config.bg}`}
+                    >
                       <config.icon className={`h-4 w-4 ${config.color}`} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -426,7 +449,7 @@ export default function DashboardPage() {
             ) : realDocs.length > 0 ? (
               realDocs.slice(0, 5).map((doc) => (
                 <div key={doc.id} className="flex gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft">
                     <UploadIcon className="h-4 w-4 text-brand" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -442,8 +465,8 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : (
-              <p className="text-center text-xs text-muted-foreground py-6">
-                No recent activity in your workspace.
+              <p className="py-6 text-center text-xs text-muted-foreground">
+                Nothing’s happened yet — once you upload a document, you’ll see it here.
               </p>
             )}
           </CardContent>
@@ -453,13 +476,13 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div>
-            <CardTitle className="text-base">Active Cases</CardTitle>
-            <CardDescription>Cases with pending work</CardDescription>
+            <CardTitle>Your active cases</CardTitle>
+            <CardDescription>Cases with the most recent work</CardDescription>
           </div>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/cases">
               All cases
-              <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
         </CardHeader>
@@ -469,35 +492,32 @@ export default function DashboardPage() {
               <Link
                 key={c.id}
                 href={`/cases/${c.id}`}
-                className="group rounded-xl border bg-card p-4 transition-all hover:border-brand hover:shadow-sm"
+                className="group rounded-xl border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">
-                    Active
-                  </span>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                  <FileText className="h-5 w-5" />
                 </div>
-                <h3 className="mt-3 truncate text-sm font-semibold text-foreground group-hover:text-brand">
+                <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-foreground group-hover:text-brand">
                   {c.name}
                 </h3>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                <p className="mt-1 truncate text-xs text-muted-foreground">
                   {c.caseNumber} · {c.practiceArea}
                 </p>
-                <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>{c.documentCount} docs</span>
-                  <span>·</span>
-                  <span>{c.filedCount} filed</span>
-                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {c.documentCount} {c.documentCount === 1 ? 'document' : 'documents'}
+                </p>
               </Link>
             ))
           ) : (
-            <div className="col-span-full py-6 text-center">
-              <p className="text-sm font-medium text-foreground">No active cases yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Create your first case or upload a document to auto-create case profiles.</p>
-              <Button size="sm" variant="outline" className="mt-3" asChild>
-                <Link href="/cases">Create Case</Link>
+            <div className="col-span-full px-2 py-8 text-center">
+              <p className="text-sm font-medium text-foreground">
+                No active cases yet
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Create your first case — or upload a document and we’ll set one up for you.
+              </p>
+              <Button size="sm" variant="outline" className="mt-4" asChild>
+                <Link href="/cases">Create a case</Link>
               </Button>
             </div>
           )}
@@ -512,39 +532,37 @@ function StatCard({
   label,
   value,
   suffix,
-  trend,
+  sublabel,
   trendUp,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: number;
   suffix?: string;
-  trend?: string;
+  sublabel?: string;
   trendUp?: boolean;
 }) {
   return (
-    <Card className="relative overflow-hidden">
+    <Card>
       <CardContent className="p-5">
         <div className="flex items-center justify-between">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-soft text-brand">
             <Icon className="h-5 w-5" />
           </div>
-          {trend && (
-            <span
-              className={`flex items-center gap-1 text-xs font-medium ${
-                trendUp ? 'text-success' : 'text-muted-foreground'
-              }`}
-            >
-              {trendUp && <TrendingUp className="h-3 w-3" />}
-              {trend}
+          {trendUp && (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
+              <TrendingUp className="h-3 w-3" />
             </span>
           )}
         </div>
-        <p className="mt-4 text-2xl font-bold tracking-tight text-foreground">
+        <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
           {value}
           {suffix}
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">{label}</p>
+        <p className="mt-1 text-sm font-medium text-foreground">{label}</p>
+        {sublabel && (
+          <p className="mt-0.5 text-xs text-muted-foreground">{sublabel}</p>
+        )}
       </CardContent>
     </Card>
   );

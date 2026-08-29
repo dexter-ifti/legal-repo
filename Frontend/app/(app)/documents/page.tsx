@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FileText, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { FileText, Search, ArrowUpDown } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -46,8 +45,8 @@ export default function DocumentsPage() {
             ? data.data.map((d: any) => ({
                 id: d.id,
                 title: d.originalFilename || 'Document',
-                caseName: d.case?.title || 'Unassigned Case',
-                category: d.documentType || 'Legal Document',
+                caseName: d.case?.title || 'Unassigned case',
+                category: d.documentType || 'Legal document',
                 fileType: (d.mimeType || 'pdf').split('/').pop() || 'pdf',
                 fileSize: Number(d.fileSize || 0),
                 pageCount: 1,
@@ -99,70 +98,87 @@ export default function DocumentsPage() {
   });
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Documents</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {docList.length} {docList.length === 1 ? 'document' : 'documents'} across all cases
+    <div className="page-shell-wide space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          All your documents
+        </h1>
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          {docList.length} {docList.length === 1 ? 'document' : 'documents'} across all your cases.
         </p>
-      </div>
+      </header>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search documents..."
-            className="pl-9"
+            placeholder="Search by name or case…"
+            className="pl-10"
           />
         </div>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-full sm:w-40">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="uploaded">Uploaded</SelectItem>
+            <SelectItem value="uploaded">Just uploaded</SelectItem>
             <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="review">In Review</SelectItem>
-            <SelectItem value="filed">Filed</SelectItem>
+            <SelectItem value="review">Needs review</SelectItem>
+            <SelectItem value="filed">Filed automatically</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
         <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-full sm:w-40">
-            <ArrowUpDown className="mr-1.5 h-4 w-4" />
+          <SelectTrigger className="w-full sm:w-44">
+            <ArrowUpDown className="mr-1 h-4 w-4" />
             <SelectValue placeholder="Sort" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="recent">Most recent</SelectItem>
-            <SelectItem value="title">Title (A-Z)</SelectItem>
-            <SelectItem value="case">Case (A-Z)</SelectItem>
+            <SelectItem value="title">Name (A–Z)</SelectItem>
+            <SelectItem value="case">Case (A–Z)</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {filtered.length === 0 ? (
         <Card>
-          <CardContent className="py-6">
+          <CardContent className="py-4">
             <EmptyState
               icon={FileText}
-              title="No documents found"
-              description="Try adjusting your search or filters."
+              title={
+                query || status !== 'all'
+                  ? 'No documents match your filters'
+                  : 'No documents yet'
+              }
+              description={
+                query || status !== 'all'
+                  ? 'Try a different search term or change the filters.'
+                  : 'Drop a PDF on the upload page and we’ll file it for you.'
+              }
+              action={
+                !query && status === 'all' ? (
+                  <Button asChild>
+                    <Link href="/upload">Upload your first document</Link>
+                  </Button>
+                ) : undefined
+              }
             />
           </CardContent>
         </Card>
       ) : (
         <Card>
-          <CardContent className="space-y-1 p-2 sm:p-4">
+          <CardContent className="space-y-1 p-2 sm:p-3">
             {filtered.map((doc) => (
               <Link
                 key={doc.id}
                 href={`/documents/${doc.id}`}
                 className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-secondary"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary text-xs font-semibold uppercase text-muted-foreground">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-xs font-semibold uppercase text-brand">
                   {doc.fileType}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -170,14 +186,16 @@ export default function DocumentsPage() {
                     {doc.title}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {doc.caseName} · {doc.category} · {doc.pageCount} pages · {formatFileSize(doc.fileSize)} · {formatRelativeTime(doc.uploadedAt)}
+                    {doc.caseName} · {doc.category} · {doc.pageCount}{' '}
+                    {doc.pageCount === 1 ? 'page' : 'pages'} · {formatFileSize(doc.fileSize)} ·{' '}
+                    {formatRelativeTime(doc.uploadedAt)}
                   </p>
                 </div>
                 <div className="hidden items-center gap-2 sm:flex">
                   {doc.ocrConfidence && (
-                    <Badge variant="outline" className="text-xs">
-                      {doc.ocrConfidence}% OCR
-                    </Badge>
+                    <span className="rounded-md border bg-card px-2 py-0.5 text-xs text-muted-foreground">
+                      {doc.ocrConfidence}% readable
+                    </span>
                   )}
                   <PriorityBadge priority={doc.priority} />
                 </div>

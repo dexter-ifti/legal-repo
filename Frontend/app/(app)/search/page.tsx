@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, FileText, X, Filter, Sparkles, Building2, Download } from 'lucide-react';
+import { Search, FileText, X, Building2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -47,16 +47,19 @@ export default function SearchPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-      const res = await fetch(`${API_URL}/api/v1/search?q=${encodeURIComponent(q)}`, {
-        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const res = await fetch(
+        `${API_URL}/api/v1/search?q=${encodeURIComponent(q)}`,
+        {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        }
+      );
 
       if (!res.ok) throw new Error('Search failed');
       const data = await res.json();
       setResults(data.data?.results || []);
     } catch (err: unknown) {
       console.error('Search query error:', err);
-      toast.error('Failed to execute search query');
+      toast.error('We couldn’t complete that search. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -73,25 +76,24 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6 lg:p-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <Search className="h-6 w-6 text-brand" />
-          Global Tenant Search
+    <div className="page-shell space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          Search anything
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Instant multi-field search across case titles, numbers, parties, document types, and extracted text.
+        <p className="mt-2 text-[15px] text-muted-foreground">
+          Find cases, parties, or specific text inside any document in your workspace.
         </p>
-      </div>
+      </header>
 
       <form onSubmit={handleSearchSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search cases, case numbers, CNR, parties, or document contents..."
-            className="pl-9"
+            placeholder="Try a case number, party name, or a phrase from the document…"
+            className="pl-10"
             autoFocus
           />
           {query && (
@@ -101,31 +103,38 @@ export default function SearchPage() {
                 setQuery('');
                 setResults([]);
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              aria-label="Clear search"
             >
               <X className="h-4 w-4" />
             </button>
           )}
         </div>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? 'Searching...' : 'Search'}
+        <Button type="submit" size="lg" disabled={isLoading}>
+          {isLoading ? 'Searching…' : 'Search'}
         </Button>
       </form>
 
-      <div className="flex items-center justify-between">
+      {query && (
         <p className="text-sm text-muted-foreground">
-          {results.length} result{results.length !== 1 ? 's' : ''}
-          {query && <span> for &ldquo;{query}&rdquo;</span>}
+          {results.length} {results.length === 1 ? 'result' : 'results'} for{' '}
+          <span className="font-medium text-foreground">“{query}”</span>
         </p>
-      </div>
+      )}
 
       {results.length === 0 ? (
         <Card>
-          <CardContent className="py-12">
+          <CardContent className="py-4">
             <EmptyState
               icon={Search}
-              title={query ? 'No matching records found' : 'Enter search terms to begin'}
-              description={query ? 'Try searching by CNR number, party name, or legal petition keywords.' : 'Type keywords in the search bar above.'}
+              title={
+                query ? 'No matching records found' : 'Start typing to search'
+              }
+              description={
+                query
+                  ? 'Try a different spelling, a CNR number, a party name, or a phrase you remember.'
+                  : 'Search by case number, CNR, party, or text from any document.'
+              }
             />
           </CardContent>
         </Card>
@@ -135,14 +144,14 @@ export default function SearchPage() {
             <Link
               key={doc.id}
               href={`/documents/${doc.id}`}
-              className="group block rounded-xl border bg-card p-4 transition-all hover:border-brand hover:shadow-sm"
+              className="group block rounded-xl border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-sm"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand font-bold text-xs uppercase">
-                  PDF
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                  <FileText className="h-5 w-5" />
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="truncate text-sm font-semibold text-foreground group-hover:text-brand">
                       {doc.originalFilename}
                     </h3>
@@ -154,27 +163,37 @@ export default function SearchPage() {
                   </div>
 
                   {doc.case && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <Building2 className="h-3.5 w-3.5 text-brand" />
-                      <span className="font-medium text-foreground">{doc.case.title}</span>
-                      {doc.case.caseNumber && <span className="font-mono bg-secondary px-1.5 py-0.5 rounded text-foreground">{doc.case.caseNumber}</span>}
+                      <span className="font-medium text-foreground">
+                        {doc.case.title}
+                      </span>
+                      {doc.case.caseNumber && (
+                        <span className="rounded bg-secondary px-1.5 py-0.5 font-mono text-foreground/80">
+                          {doc.case.caseNumber}
+                        </span>
+                      )}
                     </div>
                   )}
 
                   {doc.excerpt && (
-                    <p className="mt-1.5 text-xs text-muted-foreground bg-secondary/40 p-2 rounded-md font-mono line-clamp-2">
-                      &ldquo;{doc.excerpt}&rdquo;
+                    <p className="mt-1 line-clamp-2 rounded-md bg-secondary/50 p-2 text-xs text-muted-foreground">
+                      “{doc.excerpt}”
                     </p>
                   )}
 
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5 pt-1">
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
                     {doc.matchedFields.map((field) => (
-                      <Badge key={field} variant="secondary" className="text-[11px] font-normal">
+                      <Badge
+                        key={field}
+                        variant="secondary"
+                        className="text-[11px] font-normal"
+                      >
                         Matched: {field}
                       </Badge>
                     ))}
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      Uploaded {formatRelativeTime(doc.uploadedAt)}
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {formatRelativeTime(doc.uploadedAt)}
                     </span>
                   </div>
                 </div>
