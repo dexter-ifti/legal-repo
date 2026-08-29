@@ -29,10 +29,10 @@ export function formatRelativeTime(dateStr: string): string {
 
 export function statusLabel(status: DocStatus): string {
   const labels: Record<DocStatus, string> = {
-    uploaded: 'Uploaded',
+    uploaded: 'Just uploaded',
     processing: 'Processing',
-    review: 'In Review',
-    filed: 'Filed',
+    review: 'Needs your review',
+    filed: 'Filed automatically',
     rejected: 'Rejected',
   };
   return labels[status];
