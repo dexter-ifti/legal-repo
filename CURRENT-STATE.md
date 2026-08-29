@@ -1,6 +1,6 @@
 # Current State
 
-**Last updated:** 2026-08-22
+**Last updated:** 2026-08-30
 
 ## Project status
 
@@ -60,6 +60,7 @@ Correct legal documents automatically identified and filed into the correct case
  - Verification UI: extracted fields are inline-editable via `PATCH /api/v1/documents/:id/metadata` (source=USER, confidence=1.0, `METADATA_CORRECTED` audit event); every metadata row carries `pageNumber` provenance showing which scanned page the value came from
  - Dashboard charts (Weekly Upload Activity, Document Categories) are computed from real tenant documents; demo users see synthetic data only
 - Deterministic extraction & matching before expensive AI/LLM calls
+- UX copy is plain-English and non-technical across every screen (login/signup, sidebar, topbar, dashboard, upload, needs-attention inbox, cases, documents, search, settings) — rewritten from MVP-launch wording to be approachable for advocates, clerks, and small-firm staff who are not software users. The upload flow is now the page hero (drop-zone is the largest visible element, not a child component), drop errors and progress copy are friendly, and the inbox is renamed **Needs your attention** so its purpose is unambiguous.
 
 ---
 
