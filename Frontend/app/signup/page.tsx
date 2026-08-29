@@ -7,7 +7,6 @@ import { Logo } from '@/components/shared/logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface InviteContext {
   email?: string;
@@ -29,8 +28,6 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Resolve invite context so the form can welcome the recipient and
-  // pre-fill their email and organization name.
   useEffect(() => {
     if (!inviteToken) return;
     let cancelled = false;
@@ -62,7 +59,7 @@ function SignupForm() {
     setError(null);
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setError('Please use a password with at least 8 characters.');
       setLoading(false);
       return;
     }
@@ -83,7 +80,8 @@ function SignupForm() {
       const data = await response.json();
 
       if (!response.ok) {
-        const errorMsg = data.error?.message || data.message || 'Registration failed';
+        const errorMsg =
+          data.error?.message || data.message || 'We couldn’t create your workspace. Please try again.';
         setError(errorMsg);
         setLoading(false);
         return;
@@ -92,58 +90,60 @@ function SignupForm() {
       const token = data.data?.session?.token || data.data?.token;
       const user = data.data?.user;
 
-      if (token) {
-        localStorage.setItem('token', token);
-      }
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user));
-      }
+      if (token) localStorage.setItem('token', token);
+      if (user) localStorage.setItem('user', JSON.stringify(user));
 
       setLoading(false);
       router.push('/dashboard');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unable to connect to authentication server';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'We couldn’t reach the sign-up service. Please try again.';
       setError(msg);
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen">
-      <div className="flex flex-1 flex-col items-center justify-center bg-background px-6 py-12">
-        <div className="w-full max-w-sm">
+    <div className="flex min-h-screen flex-col bg-surface">
+      <main className="flex flex-1 items-center justify-center px-5 py-10 sm:py-16">
+        <div className="w-full max-w-md">
           <div className="mb-8 flex justify-center">
             <Logo size="lg" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            {invite ? `Join ${invite.organizationName}` : 'Create your workspace'}
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <h1 className="text-center text-2xl font-semibold tracking-tight text-foreground sm:text-[28px]">
             {invite
-              ? `You've been invited as ${invite.role?.toLowerCase() || 'a member'}.`
-              : 'Start automating your legal document workflows today.'}
+              ? `Join ${invite.organizationName}`
+              : 'Create your workspace'}
+          </h1>
+          <p className="mt-2 text-center text-[15px] text-muted-foreground">
+            {invite
+              ? `You’ve been invited as ${invite.role?.toLowerCase() || 'a member'}. Finish setting up below.`
+              : 'Start filing legal documents automatically in minutes.'}
           </p>
 
           {invite && (
-            <Alert className="mt-4 border-success/40 bg-success-soft/40">
-              <MailCheck className="h-4 w-4 text-success" />
-              <AlertDescription className="text-xs">
-                Invited to join <strong>{invite.organizationName}</strong> as{' '}
-                <strong>{invite.role?.toLowerCase()}</strong> — your email is pre-filled below.
-              </AlertDescription>
-            </Alert>
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-success/30 bg-success-soft/60 p-3 text-sm text-foreground">
+              <MailCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+              <span>
+                You’re joining <strong>{invite.organizationName}</strong> as{' '}
+                <strong>{invite.role?.toLowerCase()}</strong>. We’ve filled in
+                your email already.
+              </span>
+            </div>
           )}
 
           {error && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="text-xs">{error}</AlertDescription>
-            </Alert>
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-error/30 bg-error-soft/60 p-3 text-sm text-foreground">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+              <span>{error}</span>
+            </div>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Full name</Label>
+              <Label htmlFor="name">Your name</Label>
               <Input
                 id="name"
                 type="text"
@@ -155,7 +155,7 @@ function SignupForm() {
             </div>
             {!invite && (
               <div className="space-y-2">
-                <Label htmlFor="firm">Firm name</Label>
+                <Label htmlFor="firm">Firm or chamber name</Label>
                 <Input
                   id="firm"
                   type="text"
@@ -184,23 +184,28 @@ function SignupForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Choose a password</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
+                placeholder="At least 8 characters"
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating your workspace…
+                </>
               ) : (
-                <ArrowRight className="mr-2 h-4 w-4" />
+                <>
+                  Create workspace
+                  <ArrowRight className="h-4 w-4" />
+                </>
               )}
-              {loading ? 'Creating workspace...' : 'Create workspace'}
             </Button>
           </form>
 
@@ -214,38 +219,11 @@ function SignupForm() {
             </button>
           </p>
         </div>
-      </div>
+      </main>
 
-      <div className="hidden w-0 flex-1 lg:block">        <div className="relative flex h-full flex-col justify-center overflow-hidden bg-gradient-to-br from-[hsl(205_80%_20%)] to-[hsl(199_89%_30%)] p-12">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute -left-20 top-20 h-72 w-72 rounded-full bg-white blur-3xl" />
-            <div className="absolute right-0 bottom-10 h-96 w-96 rounded-full bg-white blur-3xl" />
-          </div>
-          <div className="relative z-10 max-w-md text-white">
-            <h2 className="text-3xl font-bold leading-tight">
-              Join hundreds of firms saving 140+ hours per month.
-            </h2>
-            <p className="mt-4 text-lg text-white/80">
-              LexFlow eliminates manual document processing so your team can
-              focus on what matters — your clients.
-            </p>
-            <div className="mt-10 grid grid-cols-3 gap-6">
-              <div>
-                <p className="text-3xl font-bold">87%</p>
-                <p className="mt-1 text-sm text-white/70">Automation rate</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold">99%</p>
-                <p className="mt-1 text-sm text-white/70">OCR accuracy</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold">140h</p>
-                <p className="mt-1 text-sm text-white/70">Saved monthly</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <footer className="px-6 pb-6 text-center text-xs text-muted-foreground">
+        Your documents are stored in a private, encrypted vault.
+      </footer>
     </div>
   );
 }
@@ -254,7 +232,7 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center bg-surface">
           <Loader2 className="h-6 w-6 animate-spin text-brand" />
         </div>
       }
