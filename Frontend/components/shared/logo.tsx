@@ -11,7 +11,9 @@ export function Logo({
   size?: 'sm' | 'default' | 'lg';
 }) {
   const iconSize =
-    size === 'sm' ? 'h-7 w-7' : size === 'lg' ? 'h-12 w-12' : 'h-9 w-9';
+    size === 'sm' ? 'h-8 w-8' : size === 'lg' ? 'h-12 w-12' : 'h-9 w-9';
+  const iconInner =
+    size === 'sm' ? 'h-4 w-4' : size === 'lg' ? 'h-6 w-6' : 'h-5 w-5';
   const textSize =
     size === 'sm' ? 'text-base' : size === 'lg' ? 'text-2xl' : 'text-lg';
 
@@ -19,14 +21,19 @@ export function Logo({
     <div className={cn('flex items-center gap-2.5', className)}>
       <div
         className={cn(
-          'flex items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-white shadow-sm',
+          'flex items-center justify-center rounded-lg bg-brand text-brand-foreground shadow-sm',
           iconSize
         )}
       >
-        <Scale className={cn(size === 'sm' ? 'h-4 w-4' : 'h-5 w-5')} />
+        <Scale className={iconInner} strokeWidth={2.25} />
       </div>
       {showText && (
-        <span className={cn('font-bold tracking-tight text-foreground', textSize)}>
+        <span
+          className={cn(
+            'font-semibold tracking-tight text-foreground',
+            textSize
+          )}
+        >
           LexFlow
         </span>
       )}

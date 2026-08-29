@@ -11,16 +11,11 @@ import {
   X,
   ArrowRight,
   ExternalLink,
+  Sparkles,
   ShieldCheck,
   Building2,
+  Tag,
 } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -30,7 +25,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { formatFileSize } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -60,6 +54,24 @@ export interface UploadedDocumentResult {
   matchStatus: string;
   uploadedAt: string;
   isDuplicate?: boolean;
+  matchedCaseTitle?: string | null;
+  matchConfidence?: number | null;
+}
+
+const MAX_BYTES = 50 * 1024 * 1024;
+
+const FRIENDLY_TYPE_LABELS: Record<string, string> = {
+  UNCLASSIFIED: 'Not sure yet — decide later',
+  PETITION: 'Petition / Writ',
+  AFFIDAVIT: 'Affidavit',
+  NOTICE: 'Court notice / Summons',
+  CONTRACT: 'Agreement / Contract',
+  EVIDENCE: 'Evidence / Exhibit',
+  JUDGMENT: 'Order / Judgment',
+};
+
+function friendlyType(value: string): string {
+  return FRIENDLY_TYPE_LABELS[value] ?? value;
 }
 
 export function DocumentUploadDropzone({
@@ -76,23 +88,23 @@ export function DocumentUploadDropzone({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [uploadResult, setUploadResult] = useState<UploadedDocumentResult | null>(null);
+  const [uploadResult, setUploadResult] =
+    useState<UploadedDocumentResult | null>(null);
 
   const handleFileSelect = useCallback((file: File) => {
     setErrorMessage(null);
     setUploadResult(null);
 
-    // Validate PDF file type
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      const msg = 'Invalid file type. Only PDF legal documents (.pdf) are supported.';
+      const msg =
+        'We can only accept PDF files right now. Please save your document as a PDF and try again.';
       setErrorMessage(msg);
       toast.error(msg);
       return;
     }
 
-    // Validate 50MB file size limit
-    if (file.size > 50 * 1024 * 1024) {
-      const msg = 'File exceeds maximum 50MB limit.';
+    if (file.size > MAX_BYTES) {
+      const msg = `This file is ${formatFileSize(file.size)} — please use a file under 50 MB.`;
       setErrorMessage(msg);
       toast.error(msg);
       return;
@@ -126,15 +138,13 @@ export function DocumentUploadDropzone({
     setErrorMessage(null);
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const authHeaders = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const authHeaders = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
 
     try {
-      // Two-phase direct-to-R2 upload (init -> PUT -> complete).
-      // The browser uploads bytes straight to cloud storage; the backend
-      // only authorizes and coordinates.
-
-      // 1. Hash the file for pre-upload deduplication.
       const arrayBuffer = await selectedFile.arrayBuffer();
       const digest = await crypto.subtle.digest('SHA-256', arrayBuffer);
       const sha256 = Array.from(new Uint8Array(digest))
@@ -143,7 +153,6 @@ export function DocumentUploadDropzone({
 
       setUploadProgress(15);
 
-      // 2. Initialize: validate + create record + get presigned upload URL.
       const initRes = await fetch(`${API_URL}/api/v1/documents/upload/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -151,7 +160,9 @@ export function DocumentUploadDropzone({
           filename: selectedFile.name,
           size: selectedFile.size,
           mime_type: selectedFile.type || 'application/pdf',
-          ...(selectedCaseId && selectedCaseId !== 'unassigned' ? { caseId: selectedCaseId } : {}),
+          ...(selectedCaseId && selectedCaseId !== 'unassigned'
+            ? { caseId: selectedCaseId }
+            : {}),
           ...(documentType ? { documentType } : {}),
           sha256,
         }),
@@ -159,23 +170,30 @@ export function DocumentUploadDropzone({
 
       const initData = await initRes.json();
       if (!initRes.ok) {
-        throw new Error(initData.error?.message || 'Failed to initialize upload');
+        throw new Error(
+          initData.error?.message ||
+            'We couldn’t start the upload. Please try again.'
+        );
       }
 
       if (initData.data.isDuplicate) {
-        
         setUploadProgress(100);
-        toast.warning('Duplicate file detected in your organization.');
+        toast.warning(
+          'This exact file is already in your workspace — we won’t store a duplicate.'
+        );
         setIsUploading(false);
         if (onUploadSuccess) {
-          onUploadSuccess({ ...initData.data.document, isDuplicate: true });
+          onUploadSuccess({
+            ...initData.data.document,
+            isDuplicate: true,
+          });
         }
         return;
       }
 
-      const { documentId, uploadUrl }: { documentId: string; uploadUrl: string } = initData.data;
+      const { documentId, uploadUrl }: { documentId: string; uploadUrl: string } =
+        initData.data;
 
-      // 3. Upload directly to R2 with progress tracking.
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', uploadUrl);
@@ -188,34 +206,46 @@ export function DocumentUploadDropzone({
         xhr.onload = () =>
           xhr.status >= 200 && xhr.status < 300
             ? resolve()
-            : reject(new Error(`Storage upload failed (Status ${xhr.status})`));
-        xhr.onerror = () => reject(new Error('Unable to reach storage'));
+            : reject(new Error('The upload didn’t complete. Please try again.'));
+        xhr.onerror = () =>
+          reject(new Error('We couldn’t reach the file vault. Please try again.'));
         xhr.send(selectedFile);
       });
 
       setUploadProgress(90);
 
-      // 4. Complete: backend verifies object and starts ingestion pipeline.
-      const completeRes = await fetch(`${API_URL}/api/v1/documents/${documentId}/upload/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
-        body: JSON.stringify({ size: selectedFile.size }),
-      });
+      const completeRes = await fetch(
+        `${API_URL}/api/v1/documents/${documentId}/upload/complete`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
+          body: JSON.stringify({ size: selectedFile.size }),
+        }
+      );
 
       const completeData = await completeRes.json();
       if (!completeRes.ok) {
-        throw new Error(completeData.error?.message || 'Failed to finalize upload');
+        throw new Error(
+          completeData.error?.message ||
+            'We couldn’t finalise the upload. Please try again.'
+        );
       }
 
       setUploadProgress(100);
-      toast.success('Document uploaded — ingestion started!');
+      toast.success('File received — we’re reading it now.', {
+        description:
+          'You can keep working. We’ll match it to the right case in a moment.',
+      });
       setIsUploading(false);
 
       if (onUploadSuccess) {
         onUploadSuccess({
           id: documentId,
           organizationId: '',
-          caseId: selectedCaseId && selectedCaseId !== 'unassigned' ? selectedCaseId : null,
+          caseId:
+            selectedCaseId && selectedCaseId !== 'unassigned'
+              ? selectedCaseId
+              : null,
           originalFilename: selectedFile.name,
           storageKey: '',
           mimeType: selectedFile.type || 'application/pdf',
@@ -231,7 +261,10 @@ export function DocumentUploadDropzone({
     } catch (err: unknown) {
       setIsUploading(false);
       setUploadProgress(0);
-      const msg = err instanceof Error ? err.message : 'Document upload failed';
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'Something went wrong. Please try again.';
       setErrorMessage(msg);
       toast.error(msg);
     }
@@ -243,296 +276,308 @@ export function DocumentUploadDropzone({
     setErrorMessage(null);
     setIsUploading(false);
     setUploadProgress(0);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
     <div className="space-y-6">
-      {/* Upload First Info Banner */}
-      <Alert className="border-brand/30 bg-brand-soft/40 text-foreground">
-        <ShieldCheck className="h-4 w-4 text-brand" />
-        <AlertTitle className="text-sm font-semibold">Upload First Principle Active</AlertTitle>
-        <AlertDescription className="text-xs text-muted-foreground">
-          You can upload legal documents immediately without pre-selecting a case. Case matching or manual assignment can be completed anytime later.
-        </AlertDescription>
-      </Alert>
-
-      {/* Case Destination & Document Category Options */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-              Target Case (Optional)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Leave unassigned to upload first & match later
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
-              <SelectTrigger id="case-select-trigger">
-                <SelectValue placeholder="Unassigned (Upload First)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unassigned">
-                  ✨ Unassigned (Upload First)
-                </SelectItem>
-                {availableCases.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title} {c.caseNumber ? `(${c.caseNumber})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              Document Classification
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Optional legal document classification tag
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Select value={documentType} onValueChange={setDocumentType}>
-              <SelectTrigger id="doctype-select-trigger">
-                <SelectValue placeholder="UNCLASSIFIED" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="UNCLASSIFIED">UNCLASSIFIED</SelectItem>
-                <SelectItem value="PETITION">PETITION / WRIT</SelectItem>
-                <SelectItem value="AFFIDAVIT">AFFIDAVIT</SelectItem>
-                <SelectItem value="NOTICE">COURT NOTICE / SUMMONS</SelectItem>
-                <SelectItem value="CONTRACT">AGREEMENT / CONTRACT</SelectItem>
-                <SelectItem value="EVIDENCE">EVIDENCE / EXHIBIT</SelectItem>
-                <SelectItem value="JUDGMENT">ORDER / JUDGMENT</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
+      {/* Trust strip */}
+      <div className="flex items-start gap-3 rounded-xl border border-brand/15 bg-brand-soft/60 px-4 py-3 text-sm">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+        <div className="text-foreground">
+          <p className="font-medium">You don’t need to pick a case first.</p>
+          <p className="text-muted-foreground">
+            Drop any legal PDF — we’ll read it, figure out which case it
+            belongs to, and ask you only if we’re not sure.
+          </p>
+        </div>
       </div>
 
-      {/* Main Drag & Drop Zone */}
+      {/* Optional details — collapsed inline so the dropzone is the hero */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border bg-card p-4">
+          <label
+            htmlFor="case-select-trigger"
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
+          >
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+            Which case is this for?
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Optional — skip if you’re not sure.
+          </p>
+          <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
+            <SelectTrigger id="case-select-trigger" className="mt-3">
+              <SelectValue placeholder="I’m not sure yet" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unassigned">
+                I’m not sure — you figure it out
+              </SelectItem>
+              {availableCases.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.title}
+                  {c.caseNumber ? ` (${c.caseNumber})` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="rounded-xl border bg-card p-4">
+          <label
+            htmlFor="doctype-select-trigger"
+            className="flex items-center gap-2 text-sm font-medium text-foreground"
+          >
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            What kind of document is it?
+          </label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            A rough label helps us file it correctly.
+          </p>
+          <Select value={documentType} onValueChange={setDocumentType}>
+            <SelectTrigger id="doctype-select-trigger" className="mt-3">
+              <SelectValue placeholder="Not sure yet" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(FRIENDLY_TYPE_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Hero dropzone */}
       {!uploadResult && (
-        <Card>
-          <CardContent className="pt-6">
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={cn(
-                'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed py-12 px-6 transition-all',
-                dragActive
-                  ? 'border-brand bg-brand-soft/60 scale-[1.01]'
-                  : selectedFile
-                  ? 'border-brand/40 bg-card'
-                  : 'border-border hover:border-brand hover:bg-secondary/40'
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={() => setDragActive(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          aria-label="Drop a PDF here, or press Enter to browse files"
+          className={cn(
+            'group relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-16 text-center transition-all sm:py-20',
+            dragActive
+              ? 'scale-[1.01] border-brand bg-brand-soft shadow-lg'
+              : selectedFile
+              ? 'border-brand/40 bg-card'
+              : 'border-border bg-card hover:border-brand hover:bg-brand-soft/30'
+          )}
+        >
+          <div
+            className={cn(
+              'flex h-16 w-16 items-center justify-center rounded-2xl transition-colors',
+              dragActive
+                ? 'bg-brand text-brand-foreground'
+                : 'bg-brand-soft text-brand group-hover:bg-brand group-hover:text-brand-foreground'
+            )}
+          >
+            <UploadCloud className="h-8 w-8" strokeWidth={1.75} />
+          </div>
+          <p className="mt-5 text-lg font-semibold text-foreground">
+            {selectedFile
+              ? selectedFile.name
+              : 'Drop your PDF here'}
+          </p>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            {selectedFile
+              ? `${formatFileSize(selectedFile.size)} · ready to upload`
+              : 'or click anywhere in this box to choose a file'}
+          </p>
+          {!selectedFile && (
+            <p className="mt-4 text-xs text-muted-foreground">
+              PDF only · Up to 50 MB
+            </p>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+        </div>
+      )}
+
+      {/* Inline error */}
+      {errorMessage && (
+        <div className="flex items-start gap-3 rounded-xl border border-error/30 bg-error-soft/60 px-4 py-3 text-sm text-foreground">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-error" />
+          <div>
+            <p className="font-medium">We couldn’t upload that file</p>
+            <p className="text-muted-foreground">{errorMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Ready-to-upload file card */}
+      {selectedFile && !uploadResult && (
+        <div className="rounded-2xl border bg-card p-5 shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-base font-semibold text-foreground">
+                {selectedFile.name}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {formatFileSize(selectedFile.size)} · PDF
+              </p>
+
+              {isUploading && (
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                    <span>Uploading to your secure vault…</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className="h-full rounded-full bg-brand transition-all duration-200"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
               )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={isUploading}
+              onClick={(e) => {
+                e.stopPropagation();
+                resetUploadState();
+              }}
+              aria-label="Remove selected file"
             >
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-brand shadow-sm">
-                <UploadCloud className="h-7 w-7" />
-              </div>
-              <p className="mt-4 text-sm font-semibold text-foreground">
-                {selectedFile ? selectedFile.name : 'Drop PDF document here or click to browse'}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Only PDF files supported — Maximum size 50MB
-              </p>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/pdf,.pdf"
-                className="hidden"
-                onChange={handleFileInputChange}
-              />
-            </div>
-
-            {/* Error Message Alert */}
-            {errorMessage && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle className="text-sm font-semibold">Upload Error</AlertTitle>
-                <AlertDescription className="text-xs">{errorMessage}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Selected File Details & Upload Action */}
-            {selectedFile && !uploadResult && (
-              <div className="mt-6 space-y-4 rounded-xl border bg-card p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand text-xs font-bold uppercase">
-                    PDF
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {selectedFile.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(selectedFile.size)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={isUploading}
-                    onClick={resetUploadState}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {isUploading && (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                      <span>Uploading to private vault...</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                      <div
-                        className="h-full bg-brand transition-all duration-200"
-                        style={{ width: `${uploadProgress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    disabled={isUploading}
-                    onClick={resetUploadState}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    disabled={isUploading}
-                    onClick={handleUploadSubmit}
-                  >
-                    {isUploading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="mr-2 h-4 w-4" />
-                        Upload PDF Document
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              disabled={isUploading}
+              onClick={(e) => {
+                e.stopPropagation();
+                resetUploadState();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isUploading}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleUploadSubmit();
+              }}
+              size="lg"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <UploadCloud className="h-4 w-4" />
+                  Upload securely
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       )}
 
-      {/* Duplicate File Alert Banner & State */}
+      {/* Duplicate card */}
       {uploadResult && uploadResult.isDuplicate && (
-        <Card className="border-warning/50 bg-warning/5">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-warning">
+        <div className="rounded-2xl border border-warning/30 bg-warning-soft/50 p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning text-warning-foreground">
               <AlertTriangle className="h-5 w-5" />
-              <CardTitle className="text-base font-semibold">
-                Duplicate File Detected
-              </CardTitle>
             </div>
-            <CardDescription className="text-xs text-muted-foreground">
-              An identical document matching SHA-256 hash <code className="font-mono text-foreground">{uploadResult.sha256.slice(0, 16)}...</code> already exists in your organization vault.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border bg-card p-3 space-y-1">
-              <p className="text-sm font-medium text-foreground">
-                {uploadResult.originalFilename}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Status: <Badge variant="outline">{uploadResult.processingStatus}</Badge> • Storage Key: <span className="font-mono">{uploadResult.storageKey}</span>
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-foreground">
+                This file is already in your workspace
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                We use a secure fingerprint to detect duplicates so the same
+                document isn’t stored twice.
               </p>
             </div>
+          </div>
 
-            <div className="flex justify-between items-center pt-2">
-              <Button variant="outline" size="sm" onClick={resetUploadState}>
-                Upload Another Document
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => router.push(`/documents/${uploadResult.id}`)}
-              >
-                View Existing Document
-                <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={resetUploadState}>
+              Upload a different file
+            </Button>
+            <Button
+              onClick={() => router.push(`/documents/${uploadResult.id}`)}
+              variant="soft"
+            >
+              Open the existing copy
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
-      {/* Fresh Upload Success Card */}
+      {/* Success card */}
       {uploadResult && !uploadResult.isDuplicate && (
-        <Card className="border-success/50 bg-success/5">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-success">
+        <div className="rounded-2xl border border-success/30 bg-success-soft/40 p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground">
               <CheckCircle2 className="h-5 w-5" />
-              <CardTitle className="text-base font-semibold">
-                Document Uploaded Successfully
-              </CardTitle>
             </div>
-            <CardDescription className="text-xs text-muted-foreground">
-              Document securely ingested and persisted to private storage.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Original Filename</p>
-                <p className="text-sm font-semibold text-foreground truncate">
-                  {uploadResult.originalFilename}
-                </p>
-              </div>
-              <div className="rounded-lg border bg-card p-3">
-                <p className="text-xs text-muted-foreground">SHA-256 Checksum</p>
-                <p className="text-xs font-mono text-foreground truncate">
-                  {uploadResult.sha256}
-                </p>
-              </div>
-              <div className="rounded-lg border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Processing Status</p>
-                <Badge className="mt-1 bg-brand text-white">{uploadResult.processingStatus}</Badge>
-              </div>
-              <div className="rounded-lg border bg-card p-3">
-                <p className="text-xs text-muted-foreground">Assigned Case</p>
-                <p className="text-xs font-medium text-foreground">
-                  {uploadResult.caseId ? uploadResult.caseId : 'Unassigned (Upload First)'}
-                </p>
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-foreground">
+                Got it — we’re reading it now
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                We saved your original safely. We’re extracting the text and
+                figuring out which case it belongs to. This usually takes under
+                a minute.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant="soft" className="gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  Queued for matching
+                </Badge>
+                <Badge variant="outline">
+                  {friendlyType(uploadResult.documentType)}
+                </Badge>
               </div>
             </div>
+          </div>
 
-            <div className="flex justify-between items-center pt-2">
-              <Button variant="outline" size="sm" onClick={resetUploadState}>
-                Upload Another Document
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => router.push(`/documents/${uploadResult.id}`)}
-              >
-                View Document
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={resetUploadState}>
+              Upload another
+            </Button>
+            <Button
+              onClick={() => router.push(`/documents/${uploadResult.id}`)}
+              variant="soft"
+            >
+              Watch it get filed
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

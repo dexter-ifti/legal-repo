@@ -17,7 +17,7 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
         statusClasses(status),
         className
       )}
@@ -54,7 +54,7 @@ export function PriorityBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium',
         priorityClasses(priority),
         className
       )}

@@ -66,11 +66,12 @@ export function ReassignCaseDialog({
         throw new Error(data.error?.message || 'Failed to reassign document');
       }
 
-      toast.success('Document assignment updated successfully');
+      toast.success('Done — the document is now filed in that case.');
       onOpenChange(false);
       if (onReassignSuccess) onReassignSuccess();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Reassignment failed';
+      const msg =
+        err instanceof Error ? err.message : 'We couldn’t change the case.';
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
@@ -83,24 +84,22 @@ export function ReassignCaseDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-brand" />
-            Reassign Document Case
+            Move this document
           </DialogTitle>
-          <DialogDescription className="text-xs">
-            Change case association or detach <span className="font-semibold text-foreground">{documentTitle}</span>.
+          <DialogDescription>
+            Choose where <span className="font-medium text-foreground">{documentTitle}</span> should be filed.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-3">
           <div className="space-y-2">
-            <Label htmlFor="case-select" className="text-xs font-semibold">
-              Select Destination Case
-            </Label>
+            <Label htmlFor="case-select">File it under</Label>
             <Select value={selectedCaseId} onValueChange={setSelectedCaseId}>
               <SelectTrigger id="case-select">
-                <SelectValue placeholder="Choose a case..." />
+                <SelectValue placeholder="Pick a case…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="detach">❌ Detach (Mark as Unassigned)</SelectItem>
+                <SelectItem value="detach">Leave unassigned</SelectItem>
                 {availableCases.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.title} {c.caseNumber ? `(${c.caseNumber})` : ''}
@@ -111,17 +110,15 @@ export function ReassignCaseDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reassign-reason" className="text-xs font-semibold">
-              Reason / Feedback (Optional)
-            </Label>
+            <Label htmlFor="reassign-reason">Why? (optional)</Label>
             <Input
               id="reassign-reason"
-              placeholder="e.g. Correcting automatic suggestion to main petition"
+              placeholder="A short note helps us suggest better next time"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
-            <p className="text-[11px] text-muted-foreground">
-              Feedback helps improve future automatic case candidate scoring.
+            <p className="text-xs text-muted-foreground">
+              Anything you add here improves future automatic suggestions.
             </p>
           </div>
         </div>
@@ -133,11 +130,11 @@ export function ReassignCaseDialog({
           <Button onClick={handleReassign} disabled={!selectedCaseId || isSubmitting}>
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving…
               </>
             ) : (
-              'Save Case Assignment'
+              'Save'
             )}
           </Button>
         </DialogFooter>

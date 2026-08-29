@@ -9,10 +9,10 @@ import {
   Upload,
   Search,
   FileText,
+  Inbox,
   Settings,
   LifeBuoy,
   LogOut,
-  ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react';
@@ -27,26 +27,21 @@ import {
 } from '@/components/ui/tooltip';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/cases', label: 'Cases', icon: FolderOpen },
   { href: '/upload', label: 'Upload', icon: Upload },
+  { href: '/inbox', label: 'Needs attention', icon: Inbox },
+  { href: '/documents', label: 'All documents', icon: FileText },
   { href: '/search', label: 'Search', icon: Search },
-  { href: '/documents', label: 'Documents', icon: FileText },
 ];
 
 const COLLAPSED_KEY = 'lexflow-sidebar-collapsed';
 
-/**
- * Self-collapsing application sidebar. Works on every screen size:
- * on desktop it folds into an icon rail; inside the mobile sheet it
- * collapses the same way. Preference persists across sessions.
- */
 export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { user } = useUserProfile();
   const [collapsed, setCollapsed] = useState(false);
 
-  // Restore saved preference after mount (avoid SSR mismatch).
   useEffect(() => {
     setCollapsed(localStorage.getItem(COLLAPSED_KEY) === 'true');
   }, []);
@@ -83,7 +78,7 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
   const renderNavLink = (
     href: string,
     label: string,
-    Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
+    Icon: React.ComponentType<{ className?: string }>
   ) => {
     const active = pathname === href || pathname.startsWith(href + '/');
     const content = (
@@ -95,19 +90,11 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
           linkBase,
           active
             ? 'bg-brand-soft text-brand'
-            : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+            : 'text-foreground/70 hover:bg-secondary hover:text-foreground'
         )}
       >
-        <Icon
-          className="h-[1.125rem] w-[1.125rem] shrink-0"
-          style={{ width: '1.125rem', height: '1.125rem' }}
-        />
-        {!collapsed && (
-          <>
-            {label}
-            {active && <ChevronRight className="ml-auto h-4 w-4 text-brand" />}
-          </>
-        )}
+        <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" />
+        {!collapsed && <span>{label}</span>}
       </Link>
     );
     return renderItem(active, content, label);
@@ -117,13 +104,12 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
     opts: {
       href: string;
       label: string;
-      icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+      icon: React.ComponentType<{ className?: string }>;
       destructive?: boolean;
       onClick?: () => void;
     }
   ) => {
     const { href, label, icon: Icon, destructive, onClick } = opts;
-    const active = pathname === href && href !== '#';
     const content = (
       <Link
         href={href}
@@ -138,19 +124,14 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
           linkBase,
           destructive
             ? 'text-destructive transition-colors hover:bg-destructive/10'
-            : active
-            ? 'bg-brand-soft text-brand'
-            : 'text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground'
+            : 'text-foreground/70 transition-colors hover:bg-secondary hover:text-foreground'
         )}
       >
-        <Icon
-          className="h-[1.125rem] w-[1.125rem] shrink-0"
-          style={{ width: '1.125rem', height: '1.125rem' }}
-        />
-        {!collapsed && label}
+        <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" />
+        {!collapsed && <span>{label}</span>}
       </Link>
     );
-    return renderItem(active, content, label);
+    return renderItem(false, content, label);
   };
 
   return (
@@ -184,9 +165,9 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
             )}
           >
             {collapsed ? (
-              <PanelLeftOpen className="h-4.5 w-4.5" />
+              <PanelLeftOpen className="h-4 w-4" />
             ) : (
-              <PanelLeftClose className="h-4.5 w-4.5" />
+              <PanelLeftClose className="h-4 w-4" />
             )}
           </button>
         </div>
@@ -209,14 +190,16 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
             </Link>
           )}
           {navItems.map((item) => (
-            <div key={item.href}>{renderNavLink(item.href, item.label, item.icon)}</div>
+            <div key={item.href}>
+              {renderNavLink(item.href, item.label, item.icon)}
+            </div>
           ))}
         </nav>
 
         {/* Secondary navigation */}
         <div className={cn('space-y-1 border-t py-4', collapsed ? 'px-2' : 'px-3')}>
           {renderActionLink({ href: '/settings', label: 'Settings', icon: Settings })}
-          {renderActionLink({ href: '#', label: 'Help & Support', icon: LifeBuoy })}
+          {renderActionLink({ href: '#', label: 'Help & support', icon: LifeBuoy })}
           {renderActionLink({
             href: '/login',
             label: 'Sign out',
@@ -243,7 +226,7 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
                 className="flex justify-center"
                 title={`${user.name} — ${user.role}`}
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-sm font-semibold text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
                   {user.initials}
                 </div>
               </Link>,
@@ -255,12 +238,16 @@ export function Sidebar({ onItemClick }: { onItemClick?: () => void }) {
               onClick={onItemClick}
               className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-secondary"
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[hsl(199_89%_30%)] to-[hsl(205_80%_20%)] text-sm font-semibold text-white">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
                 {user.initials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{user.role}</p>
+                <p className="truncate text-sm font-medium text-foreground">
+                  {user.name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {user.role}
+                </p>
               </div>
             </Link>
           )}
